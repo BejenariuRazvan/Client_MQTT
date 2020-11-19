@@ -2,15 +2,15 @@ from psutil import sensors_temperatures, cpu_percent, disk_partitions, process_i
 import abc
 from cpuinfo import get_cpu_info
 
-class information(metaclass=abc.ABCMeta):
+class SystemInformation(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def get_info(self):
-        pass
+        """This method should return a string with information specific to the class."""
 
 
 # class with only one method that returns a string containing relevant information about the processor
-class cpu_information(information):
+class CpuInformation(SystemInformation):
     def get_info(self):
         info = ""
 
@@ -34,7 +34,7 @@ class cpu_information(information):
         return info
 
 # class with only one method that returns a string containing relevant information about the disks that the computer has
-class disk_information(information):
+class DiskInformation(SystemInformation):
     def get_info(self):
         info = ""
 
@@ -44,7 +44,7 @@ class disk_information(information):
         return info
 
 # class with only one method that returns a string containing relevant information about the current running processes
-class running_processes(information):
+class RunningProcesses(SystemInformation):
     def get_info(self):
         info = ""
         for proc in process_iter(['pid', 'name', 'username']):
@@ -55,9 +55,9 @@ class running_processes(information):
 
 # for testing purposes
 if __name__ == "__main__":
-    cpu_info = cpu_information()
-    disk_info = disk_information()
-    proc_info = running_processes()
+    cpu_info = CpuInformation()
+    disk_info = DiskInformation()
+    proc_info = RunningProcesses()
     print(cpu_info.get_info())
     print(disk_info.get_info())
     print(proc_info.get_info())
