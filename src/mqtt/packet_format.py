@@ -1,6 +1,6 @@
 class FixedHeader:
 
-    def __init__(self,packet_type,flag,remaining_length):
+    def __init__(self,packet_type = None,flag = None,remaining_length = None):
         self.packet_type = packet_type
         self.flag = flag 
         self.remaining_length = remaining_length
