@@ -279,6 +279,238 @@ class PubcompPacket:
 
         self.variable_header.set_field_value("packet_identifier",packet_identifier)
 
+class SubscribePacket:
+    def __init__(self):
+        self.fixed_header=FixedHeader()
+        self.variable_header=VariableHeader()
+        self.payload=Payload()
+
+        ################
+        # FIXED HEADER #
+        ################
+
+        # 8 for SUBSCRIBE
+        self.fixed_header.set_packet_type(8)
+        # flags -> reserved(2)
+        self.fixed_header.set_flags(2)
+        # remaining_length will be determined later
+        self.fixed_header.set_remaining_length(0)
+
+        ###################
+        # VARIABLE HEADER #
+        ###################
+
+        self.variable_header.add_field("packet_identifier")
+        self.variable_header.add_field("property_length")
+        
+        packet_identifier = ""
+        property_length = ""
+
+        packet_identifier += serialize_8bit_int(0)
+        packet_identifier += serialize_8bit_int(10)
+        property_length += serialize_8bit_int(0)
+
+        self.variable_header.set_field_value("packet_identifier",packet_identifier)
+        self.variable_header.set_field_value("property_length",property_length)
+
+        ###########
+        # PAYLOAD #
+        ###########
+
+        # to be completed
+
+class SubackPacket:
+    def __init__(self):
+        self.fixed_header=FixedHeader()
+        self.variable_header=VariableHeader()
+        self.payload=Payload()
+
+        ################
+        # FIXED HEADER #
+        ################
+        
+        # 9 for Suback
+        self.fixed_header.set_packet_type(9)
+        # flags -> reserved(0)
+        self.fixed_header.set_flags(0)
+        self.fixed_header.set_remaining_length(0)
+        
+        ###################
+        # VARIABLE HEADER #
+        ###################
+
+        self.variable_header.add_field("packet_identifier")
+        self.variable_header.add_field("property_length")
+        
+
+        packet_identifier = ""
+        property_length = ""
+
+        packet_identifier += serialize_8bit_int(0)
+        packet_identifier += serialize_8bit_int(0)
+       
+        self.variable_header.set_field_value("packet_identifier",packet_identifier)
+        self.variable_header.set_field_value("property_length",property_length)
+
+
+        ###########
+        # PAYLOAD #
+        ###########
+
+        # to be completed
+        reasons_codes={}
+
+class UnsubscribePacket:
+    def __init__(self):
+        self.fixed_header=FixedHeader()
+        self.variable_header=VariableHeader()
+        self.payload=Payload()
+
+        ################
+        # FIXED HEADER #
+        ################
+        
+        # 10 for unsubscribe
+        self.fixed_header.set_packet_type(10)
+        # flags -> reserved(2)
+        self.fixed_header.set_flags(2)
+        self.fixed_header.set_remaining_length(0)
+        
+        ###################
+        # VARIABLE HEADER #
+        ###################
+
+        self.variable_header.add_field("packet_identifier")
+        self.variable_header.add_field("property_length")
+        
+
+        packet_identifier = ""
+        property_length = ""
+
+        packet_identifier += serialize_8bit_int(0)
+        packet_identifier += serialize_8bit_int(0)
+       
+        self.variable_header.set_field_value("packet_identifier",packet_identifier)
+        self.variable_header.set_field_value("property_length",property_length)
+
+
+        ###########
+        # PAYLOAD #
+        ###########
+
+        # to be completed
+        reasons_codes={}
+
+class UnsubackPacket:
+    def __init__(self):
+        self.fixed_header=FixedHeader()
+        self.variable_header=VariableHeader()
+        self.payload=Payload()
+
+        ################
+        # FIXED HEADER #
+        ################
+        
+        # 11 for unsuback
+        self.fixed_header.set_packet_type(11)
+        # flags -> reserved(0)
+        self.fixed_header.set_flags(0)
+        self.fixed_header.set_remaining_length(0)
+        
+        ###################
+        # VARIABLE HEADER #
+        ###################
+
+        self.variable_header.add_field("packet_identifier")
+        self.variable_header.add_field("property_length")
+        
+
+        packet_identifier = ""
+        property_length = ""
+
+        packet_identifier += serialize_8bit_int(0)
+        packet_identifier += serialize_8bit_int(0)
+       
+        self.variable_header.set_field_value("packet_identifier",packet_identifier)
+        self.variable_header.set_field_value("property_length",property_length)
+
+
+        ###########
+        # PAYLOAD #
+        ###########
+
+        # to be completed
+        reasons_codes={}
+
+class PingreqPacket:
+    def __init__(self):
+        self.fixed_header=FixedHeader()
+        # no variable_header
+        self.variable_header=None
+        # no payload
+        self.payload=None
+
+        ################
+        # FIXED HEADER #
+        ################
+        
+        # 12 for pingreq
+        self.fixed_header.set_packet_type(12)
+        # flags -> reserved(0)
+        self.fixed_header.set_flags(0)
+        self.fixed_header.set_remaining_length(0)
+        
+class PingrespPacket:
+    def __init__(self):
+        self.fixed_header=FixedHeader()
+        # no variable_header
+        self.variable_header=None
+        # no payload
+        self.payload=None
+
+        ################
+        # FIXED HEADER #
+        ################
+        
+        # 13 for pingreq
+        self.fixed_header.set_packet_type(13)
+        # flags -> reserved(0)
+        self.fixed_header.set_flags(0)
+        self.fixed_header.set_remaining_length(0)     
+
+
+class DisconnectPacket:
+    def __init__(self):
+        self.fixed_header = FixedHeader()
+        self.variable_header = VariableHeader()
+        # no payload
+        self.payload = None
+        ################
+        # FIXED HEADER #
+        ################
+
+        # 14 for disconnect
+        self.fixed_header.set_packet_type(14)
+        # flags -> reserved ( 0 )
+        self.fixed_header.set_flags(0)
+        # remaining length cannot be determined as of right now
+        # to be updated after the population of the variable header
+        self.fixed_header.set_remaining_length(0)
+
+        ###################
+        # VARIABLE HEADER #
+        ###################
+
+        self.variable_header.add_field("disconnect_reasons_code")
+        self.variable_header.add_field("property_length")
+
+        disconnect_reasons_code = ""
+        property_length = ""
+        self.variable_header.set_field_value("disconnect_reasons_code",disconnect_reasons_code)
+        self.variable_header.set_field_value("property_length",property_length)
+      
+    
+
 
 
 if __name__ == "__main__":
@@ -289,6 +521,12 @@ if __name__ == "__main__":
     test_5 = PubrecPacket()
     test_6 = PubrelPacket()
     test_7  = PubcompPacket()
+
+    test_8  = SubscribePacket()
+    test_9  = SubackPacket()
+    test_10  = UnsubscribePacket()
+    test_11  = UnsubackPacket()
+
 
     print("CONNECT")
     print(test_1.variable_header.get_field("protocol_name"))
@@ -319,6 +557,24 @@ if __name__ == "__main__":
     print(test_7.fixed_header.get_packet_type())
     print(test_7.fixed_header.get_flag())
     print(test_7.variable_header.get_field("packet_identifier"))
+
+    print("SUBSCRIBE")
+    print(test_8.fixed_header.get_packet_type())
+    print(test_8.fixed_header.get_flag())
+    print(test_8.variable_header.get_field("packet_identifier"))
+    print("SUBACK")
+    print(test_9.fixed_header.get_packet_type())
+    print(test_9.fixed_header.get_flag())
+    print(test_9.variable_header.get_field("packet_identifier"))
+    print("UNSUBSCRIBE")
+    print(test_10.fixed_header.get_packet_type())
+    print(test_10.fixed_header.get_flag())
+    print(test_10.variable_header.get_field("packet_identifier"))
+    print("UNSUBACK")
+    print(test_11.fixed_header.get_packet_type())
+    print(test_11.fixed_header.get_flag())
+    print(test_11.variable_header.get_field("packet_identifier"))
+    
 
 
 
