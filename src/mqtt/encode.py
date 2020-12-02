@@ -1,24 +1,25 @@
-def serialize_string(message):
-    temporary_byte = 0
-    payload = str("")
+import struct
 
-    for byte in message:
-        # [2:] because bin introduces '0b' as the first 2 bits of th converted string
-        # example: 0b01010110 -> [2:] results in 01010110
-        temporary_byte = bin(ord(byte))[2:]
-        temporary_byte = '%08d' %int(temporary_byte)
-        payload += temporary_byte
+# function is described in MQTT 5  Documentation; section 1.5.5
+def encode_int(n):
+    b = bytearray()
+    v = 0
+    while True:
+        v = n & 127 # equals to n % 128, but should be faster
+        n = n >> 7  # n / 2^7
+        if n > 0:
+            b.append(v | 128)
+        else:
+            b.append(v)
+            break
+    return b
 
-    return payload
+def encode_string(s):
+    b = bytearray()
+    # Length (MSB)
+    # Length (LSB)
+    b.extend(struct.pack('!H', len(s)))
+    # string
+    b.extend(bytearray(s, 'utf-8'))
 
-def serialize_8bit_int(integer):
-    if integer <0 or integer >=255:
-        raise Exception("Cannot serialize integer " + integer + "on 8 bits.")
-    else:
-        return '%08d' %int(str(bin(integer)[2:]))
-
-def serialize_4bit_int(integer):
-    if integer <0 or integer >=16:
-        raise Exception("Cannot serialize integer " + integer + "on 4 bits.")
-    else:
-        return '%04d' %int(str(bin(integer)[2:]))
+    return b
