@@ -195,8 +195,10 @@ class PubackPacket:
 
     packet_id = 0
 
-    def __init__(self, packet_id = 0):
-        self.packet_id = packet_id
+    def __init__(self, packet_id = 0, reason_code = 0x00, property_length = 0):
+        self.packet_id = packet_id    
+        self.reason_code = reason_code
+        self.property_length = property_length
 
     def pack(self):      
         packed_data = bytearray()  
@@ -218,98 +220,127 @@ class PubackPacket:
         ###################
 
         packed_data.extend(struct.pack('!H', self.packet_id))
+        # Byte 3 in the Variable Header is the PUBACK Reason Code
+        # If the Remaining Length is 2, then the Publish Reason Code has the value 0x00 (Success).
+        packed_data.append(self.reason_code)
+        # If the Remaining Length is less than 4 there is no Property Length and the value of 0 is used.
+        packed_data.extend(encode_int(self.property_length))
+
+        # it seems that the documentation talks about:
+        # - reason string         
+        # - user property 
+        # but informations about these fields are rather unclear.
+
+        # The PUBACK Packet has no payload.
+
 
         return packed_data
 
-# class PubrecPacket:
-#     def __init__(self):
-#         self.fixed_header = FixedHeader()
-#         self.variable_header = VariableHeader()
-#         # The PUBREC Packet has no payload.
-#         self.payload = None 
-        
-#         ################
-#         # FIXED HEADER #
-#         ################
+class PubrecPacket:
+    fixed_header = FixedHeader()
 
-#         # 5 for pubrec
-#         self.fixed_header.set_packet_type(5)
-#         # flags -> reserved ( 0 )
-#         self.fixed_header.set_flags(0)
-#         # only 2 bytes in Variable header, no bytes in payload
-#         self.fixed_header.set_remaining_length(2)
+    def __init__(self, packet_id = 0, reason_code = 0x00, property_length = 0):
+        self.packet_id = packet_id    
+        self.reason_code = reason_code
+        self.property_length = property_length
 
-#         ###################
-#         # VARIABLE HEADER #
-#         ###################
+    def pack(self):
+        packed_data = bytearray()  
+        ################
+        # FIXED HEADER #
+        ################
 
-#         self.variable_header.add_field("packet_identifier")
-#         packet_identifier = ""
+        # 5 for pubrec
+        self.fixed_header.packet_type = 0x05
+        # flags -> reserved ( 0 )
+        self.fixed_header.flags = 0x00
+        # only 2 bytes in Variable header, no bytes in payload
+        self.fixed_header.remaining_length = 2
 
-#         packet_identifier += serialize_8bit_int(0)
-#         packet_identifier += serialize_8bit_int(0)
+        ###################
+        # VARIABLE HEADER #
+        ###################
 
-#         self.variable_header.set_field_value("packet_identifier",packet_identifier)
+        packed_data.extend(struct.pack('!H', self.packet_id))
+        # Byte 3 in the Variable Header is the PUBREC Reason Code
+        # If the Remaining Length is 2, then the Publish Reason Code has the value 0x00 (Success).
+        packed_data.append(self.reason_code)
+        # If the Remaining Length is less than 4 there is no Property Length and the value of 0 is used.
+        packed_data.extend(encode_int(self.property_length))
 
-# class PubrelPacket:
-#     def __init__(self):
-#         self.fixed_header = FixedHeader()
-#         self.variable_header = VariableHeader()
-#         # The PUBREL Packet has no payload.
-#         self.payload = None 
-        
-#         ################
-#         # FIXED HEADER #
-#         ################
+        # it seems that the documentation talks about:
+        # - reason string         
+        # - user property 
+        # but informations about these fields are rather unclear.
 
-#         # 6 for pubrel
-#         self.fixed_header.set_packet_type(6)
-#         # flags -> 0010
-#         self.fixed_header.set_flags(2)
-#         # only 2 bytes in Variable header, no bytes in payload
-#         self.fixed_header.set_remaining_length(2)
+        # The PUBREC Packet has no payload.
 
-#         ###################
-#         # VARIABLE HEADER #
-#         ###################
+class PubrelPacket:
+    fixed_header = FixedHeader()
 
-#         self.variable_header.add_field("packet_identifier")
-#         packet_identifier = ""
+    def __init__(self, packet_id = 0, reason_code = 0x00, property_length = 0):
+        self.packet_id = packet_id    
+        self.reason_code = reason_code
+        self.property_length = property_length
 
-#         packet_identifier += serialize_8bit_int(0)
-#         packet_identifier += serialize_8bit_int(0)
+    def pack(self):
+        packed_data = bytearray()  
+        ################
+        # FIXED HEADER #
+        ################
 
-#         self.variable_header.set_field_value("packet_identifier",packet_identifier)
+        # 6 for pubrel
+        self.fixed_header.packet_type = 0x06
+        # flags -> reserved ( 2 )
+        self.fixed_header.flags = 0x02
+        # only 2 bytes in Variable header, no bytes in payload
+        self.fixed_header.remaining_length = 2
 
-# class PubcompPacket:
-#     def __init__(self):
-#         self.fixed_header = FixedHeader()
-#         self.variable_header = VariableHeader()
-#         # The PUBCOMP  Packet has no payload.
-#         self.payload = None 
-        
-#         ################
-#         # FIXED HEADER #
-#         ################
+        ###################
+        # VARIABLE HEADER #
+        ###################
 
-#         # 7 for pubcomp
-#         self.fixed_header.set_packet_type(7)
-#         # flags -> reserved ( 0 )
-#         self.fixed_header.set_flags(0)
-#         # only 2 bytes in Variable header, no bytes in payload
-#         self.fixed_header.set_remaining_length(2)
+        packed_data.extend(struct.pack('!H', self.packet_id))
+        # Byte 3 in the Variable Header is the PUBREL Reason Code
+        # If the Remaining Length is 2, then the Publish Reason Code has the value 0x00 (Success).
+        packed_data.append(self.reason_code)
+        # If the Remaining Length is less than 4 there is no Property Length and the value of 0 is used.
+        packed_data.extend(encode_int(self.property_length))
 
-#         ###################
-#         # VARIABLE HEADER #
-#         ###################
+        # The PUBREL packet has no Payload.
 
-#         self.variable_header.add_field("packet_identifier")
-#         packet_identifier = ""
+ 
+class PubcompPacket:
+    fixed_header = FixedHeader()
 
-#         packet_identifier += serialize_8bit_int(0)
-#         packet_identifier += serialize_8bit_int(0)
+    def __init__(self, packet_id = 0, reason_code = 0x00, property_length = 0):
+        self.packet_id = packet_id    
+        self.reason_code = reason_code
+        self.property_length = property_length
 
-#         self.variable_header.set_field_value("packet_identifier",packet_identifier)
+    def pack(self):
+        packed_data = bytearray()  
+        ################
+        # FIXED HEADER #
+        ################
+
+        # 7 for pubcomp
+        self.fixed_header.packet_type = 0x07
+        # flags -> reserved ( 0 )
+        self.fixed_header.flags = 0x00
+        # only 2 bytes in Variable header, no bytes in payload
+        self.fixed_header.remaining_length = 2
+
+        ###################
+        # VARIABLE HEADER #
+        ###################
+
+        packed_data.extend(struct.pack('!H', self.packet_id))
+        # Byte 3 in the Variable Header is the PUBCOMP Reason Code
+        # If the Remaining Length is 2, then the Publish Reason Code has the value 0x00 (Success).
+        packed_data.append(self.reason_code)
+        # If the Remaining Length is less than 4 there is no Property Length and the value of 0 is used.
+        packed_data.extend(encode_int(self.property_length))
 
 # class SubscribePacket:
 #     def __init__(self):
