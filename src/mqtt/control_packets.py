@@ -3,7 +3,6 @@ import struct
 from encode import encode_string, encode_int
 
 class ConnectPacket:
-    fixed_header = FixedHeader()
     class ConnectFlags: 
         username_flag = 1
         password_flag = 1
@@ -12,15 +11,9 @@ class ConnectPacket:
         will_flag = 0
         clean_start = 0
     
-    keep_alive = 0
-    client_id = ""
-    will_properties = ""
-    will_topic = ""
-    will_payload = ""
-    user_name = ""
-    password = ""
 
-    def __init__(self, client_id, will_properties, will_topic, will_payload, user_name, password, keep_alive):
+    def __init__(self, client_id = "", will_properties = 0, will_topic = 0, will_payload = 0, user_name = "", password = "", keep_alive = 0):
+        self.fixed_header = FixedHeader()
         self.client_id = client_id
         self.will_properties = will_properties
         self.will_topic = will_topic
@@ -99,11 +92,9 @@ class ConnectPacket:
     
     # TO DO: add decode function
 
-
 class ConnackPacket:
-    fixed_header = FixedHeader()
-
     def __init__(self, connect_ackowledge_flags = 0, connect_reason_code = 0):
+        self.fixed_header = FixedHeader()
         self.connect_ackowledge_flags = connect_ackowledge_flags
         self.connect_reason_code = connect_reason_code
 
@@ -134,18 +125,10 @@ class ConnackPacket:
         
         return packed_data
 
-
 class PublishPacket:
-    fixed_header = FixedHeader()
-
-    dup = 0
-    QoS = 0
-    retain = 0
-    topic = ""
-    packet_id = 0
-    
     def __init__(self, topic = '', payload = '', 
             packet_id = 0, QoS = 0, dup = 0, retain = 0):
+        self.fixed_header = FixedHeader()
         self.topic = topic
         self.payload = payload
         self.packet_id = packet_id
@@ -189,13 +172,9 @@ class PublishPacket:
         return packed_data_with_fixed_header
     # TO DO: add functions to modify variable header and payload
 
-
 class PubackPacket:
-    fixed_header = FixedHeader()
-
-    packet_id = 0
-
     def __init__(self, packet_id = 0, reason_code = 0x00, property_length = 0):
+        self.fixed_header = FixedHeader()
         self.packet_id = packet_id    
         self.reason_code = reason_code
         self.property_length = property_length
@@ -232,14 +211,15 @@ class PubackPacket:
         # but informations about these fields are rather unclear.
 
         # The PUBACK Packet has no payload.
+        self.fixed_header.remaining_length = len(packed_data)
+        packed_data_with_fixed_header = bytearray(self.fixed_header.pack())
+        packed_data_with_fixed_header.extend(packed_data)
 
-
-        return packed_data
+        return packed_data_with_fixed_header
 
 class PubrecPacket:
-    fixed_header = FixedHeader()
-
     def __init__(self, packet_id = 0, reason_code = 0x00, property_length = 0):
+        self.fixed_header = FixedHeader()
         self.packet_id = packet_id    
         self.reason_code = reason_code
         self.property_length = property_length
@@ -275,10 +255,15 @@ class PubrecPacket:
 
         # The PUBREC Packet has no payload.
 
-class PubrelPacket:
-    fixed_header = FixedHeader()
+        self.fixed_header.remaining_length = len(packed_data)
+        packed_data_with_fixed_header = bytearray(self.fixed_header.pack())
+        packed_data_with_fixed_header.extend(packed_data)
 
+        return packed_data_with_fixed_header
+
+class PubrelPacket:
     def __init__(self, packet_id = 0, reason_code = 0x00, property_length = 0):
+        self.fixed_header = FixedHeader()
         self.packet_id = packet_id    
         self.reason_code = reason_code
         self.property_length = property_length
@@ -309,11 +294,15 @@ class PubrelPacket:
 
         # The PUBREL packet has no Payload.
 
- 
-class PubcompPacket:
-    fixed_header = FixedHeader()
+        self.fixed_header.remaining_length = len(packed_data)
+        packed_data_with_fixed_header = bytearray(self.fixed_header.pack())
+        packed_data_with_fixed_header.extend(packed_data)
 
+        return packed_data_with_fixed_header
+
+class PubcompPacket:
     def __init__(self, packet_id = 0, reason_code = 0x00, property_length = 0):
+        self.fixed_header = FixedHeader()
         self.packet_id = packet_id    
         self.reason_code = reason_code
         self.property_length = property_length
@@ -342,23 +331,22 @@ class PubcompPacket:
         # If the Remaining Length is less than 4 there is no Property Length and the value of 0 is used.
         packed_data.extend(encode_int(self.property_length))
 
-class SubscribePacket:
-    fixed_header=FixedHeader()
-    packet_id=0
-    topic=[]
-    QoS=[]
-    Retain_Handling=[]
-    RAP=[]
-    NL=[]
+        self.fixed_header.remaining_length = len(packed_data)
+        packed_data_with_fixed_header = bytearray(self.fixed_header.pack())
+        packed_data_with_fixed_header.extend(packed_data)
 
+        return packed_data_with_fixed_header
+
+class SubscribePacket:
     def __init__(self,topic,QoS, packet_id = 0, property_length = 0, Retain_Handling=[], RAP=[], NL=[]):
+        self.fixed_header=FixedHeader()
         self.packet_id = packet_id
         self.property_length = property_length
-        self.Retain_Handling.extend(Retain_Handling)
-        self.RAP.extend(RAP)
-        self.NL.extend(NL)
-        self.topic.extend(topic)
-        self.QoS.extend(QoS)
+        self.Retain_Handling = Retain_Handling
+        self.RAP = RAP
+        self.NL = NL
+        self.topic = topic
+        self.QoS = QoS
 
     def pack(self):
         packed_data=bytearray()
@@ -381,17 +369,23 @@ class SubscribePacket:
         ###########
         # PAYLOAD #
         ###########
+        i = 0
+
         # for every element in the topic list, get the message and the QoS 
-        for i,j in enumerate(self.topic):
-            packed_data.extend(encode_string(j))
-            aux=0
+        for elem in self.topic:
+            packed_data.extend(encode_string(elem))
+            aux = 0
             aux =aux << 7
-            aux |=self.Retain_Handling[i] <<5
-            aux |=self.RAP[i]<<3
-            aux |=self.NL[i]<<2
+            if len(self.Retain_Handling) != 0:
+                aux |=self.Retain_Handling[i] <<5
+            if len(self.RAP) != 0:
+                aux |=self.RAP[i] <<3
+            if len(self.NL) != 0:
+                aux |=self.NL[i] <<2
             aux |=self.QoS[i]
             packed_data.extend(encode_int(aux))
-
+            i+=1
+        
         self.fixed_header.remaining_length = len(packed_data)
         packed_data_with_fixed_header = bytearray(self.fixed_header.pack())
         packed_data_with_fixed_header.extend(packed_data)
@@ -400,17 +394,11 @@ class SubscribePacket:
 
         # to be completed
 
-x=SubscribePacket(["ana","are","mere"],[2,1,0],8,10,[0,0,0],[1,1,1],[1,0,0])
-print("Subscribe :         "+str(x.pack()))
-
-class SubackPacket:
-    fixed_header=FixedHeader()
-    packet_id=0
-    reasons_code=[]
-     
+class SubackPacket:  
     def __init__(self,packet_id=0,reasons_code=[]):
-        self.packet_id=packet_id
-        self.reasons_code.extend(reasons_code)
+        self.fixed_header = FixedHeader()
+        self.packet_id = packet_id
+        self.reasons_code = reasons_code
     
     def pack(self):
         packed_data=bytearray()
@@ -443,16 +431,11 @@ class SubackPacket:
         return packed_data_with_fixed_header
         # to be completed
 
-x=SubackPacket(5,[0x00,0x01])
-print("Suback :     "+str(x.pack()))
-
 class UnsubscribePacket:
-    fixed_header=FixedHeader()
-    packet_id=0
-    topic=[]
     def __init__(self,packet_id=0,topic=[]):
+        self.fixed_header = FixedHeader()
         self.packet_id=packet_id
-        self.topic.extend(topic)         
+        self.topic = topic
 
     def pack(self):
         packed_data=bytearray()        
@@ -484,14 +467,9 @@ class UnsubscribePacket:
         return packed_data_with_fixed_header
         # to be completed
 
-x=UnsubscribePacket(1,["ana","pere"])
-print("Unsubscribe:    "+str(x.pack()))
-
 class UnsubackPacket:
-    fixed_header=FixedHeader()
-    packet_id=0
-
     def __init__(self,packet_id=0):
+        self.fixed_header = FixedHeader()
         self.packet_id=packet_id
 
     def pack(self):
@@ -523,9 +501,8 @@ class UnsubackPacket:
         # to be completed
 
 class PingreqPacket:
-    fixed_header=FixedHeader()
     def __init__(self):
-        pass
+        self.fixed_header = FixedHeader()
 
     def pack(self): 
         packed_data=bytearray()       
@@ -543,11 +520,11 @@ class PingreqPacket:
 
         # The PINGRESP packet has no Variable Header and no Payload.
 
-        
+        return packed_data
+
 class PingrespPacket:
-    fixed_header=FixedHeader()
     def __init__(self):
-        pass
+        self.fixed_header = FixedHeader()
     def pack(self):
         packed_data=bytearray()
 
@@ -563,14 +540,13 @@ class PingrespPacket:
         packed_data.extend(self.fixed_header.pack())
 
         # The PINGRESP packet has no Variable Header and no Payload.
-
-
+        
+        return packed_data
 
 
 class DisconnectPacket:
-    fixed_header = FixedHeader()
-
     def __init__(self, reason_code = 0x00, property_length = 0, session_expiry_interval_id = 0, session_expiry_interval = 0):
+        self.fixed_header = FixedHeader()
         self.reason_code = reason_code
         self.property_length = property_length
         self.session_expiry_interval_id = session_expiry_interval_id
@@ -597,18 +573,21 @@ class DisconnectPacket:
         packed_data.extend(encode_int(self.session_expiry_interval_id))
         packed_data.extend(encode_int(self.session_expiry_interval))
 
-        self.fixed_header.remaining_length = len(packed_data)
-        packed_data.extend(self.fixed_header.pack())
-
         # The DISCONNECT packet has no Payload.
 
         # user properties ?
         # server reference ?
 
+        self.fixed_header.remaining_length = len(packed_data)
+        packed_data_with_fixed_header = bytearray(self.fixed_header.pack())
+        packed_data_with_fixed_header.extend(packed_data)
+
+        return packed_data_with_fixed_header
+
 class AuthPacket:
-    fixed_header = FixedHeader()
 
     def __init__(self, reason_code = 0x00, property_length = 0, auth_method_id = 0, auth_method = "", auth_data_id = 0, auth_data = "", reason_string_id = 0, reason_string = ""):
+        self.fixed_header = FixedHeader()
         self.reason_code = reason_code
         self.property_length = property_length
         self.auth_method_id = auth_method_id
@@ -642,13 +621,16 @@ class AuthPacket:
         packed_data.extend(encode_string(self.auth_data))
         packed_data.extend(encode_int(self.reason_string_id))
         packed_data.extend(encode_string(self.reason_string))
-
-        self.fixed_header.remaining_length = len(packed_data)
-        packed_data.extend(self.fixed_header.pack())
         
         # The AUTH packet has no Payload.
 
         # user properties ?
+
+        self.fixed_header.remaining_length = len(packed_data)
+        packed_data_with_fixed_header = bytearray(self.fixed_header.pack())
+        packed_data_with_fixed_header.extend(packed_data)
+
+        return packed_data_with_fixed_header
 
 
 
