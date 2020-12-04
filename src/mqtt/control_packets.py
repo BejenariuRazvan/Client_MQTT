@@ -524,7 +524,10 @@ class UnsubackPacket:
 
 class PingreqPacket:
     fixed_header=FixedHeader()
-    def __init__(self): 
+    def __init__(self):
+        pass
+
+    def pack(self): 
         packed_data=bytearray()       
 
         ################
@@ -534,13 +537,20 @@ class PingreqPacket:
         # 12 for pingreq
         self.fixed_header.packet_type=0x0c
         # flags -> reserved(0)
-        self.fixed_header.flags=0
+        self.fixed_header.flags=0x00
         self.fixed_header.remaining_length=0
         packed_data.extend(self.fixed_header.pack())
+
+        # The PINGRESP packet has no Variable Header and no Payload.
+
         
 class PingrespPacket:
     fixed_header=FixedHeader()
     def __init__(self):
+        pass
+    def pack(self):
+        packed_data=bytearray()
+
         ################
         # FIXED HEADER #
         ################
@@ -550,108 +560,95 @@ class PingrespPacket:
         # flags -> reserved(0)
         self.fixed_header.flags=0x00
         self.fixed_header.remaining_length=0     
+        packed_data.extend(self.fixed_header.pack())
 
-
-# class DisconnectPacket:
-#     def __init__(self):
-#         self.fixed_header = FixedHeader()
-#         self.variable_header = VariableHeader()
-#         # no payload
-#         self.payload = None
-#         ################
-#         # FIXED HEADER #
-#         ################
-
-#         # 14 for disconnect
-#         self.fixed_header.set_packet_type(14)
-#         # flags -> reserved ( 0 )
-#         self.fixed_header.set_flags(0)
-#         # remaining length cannot be determined as of right now
-#         # to be updated after the population of the variable header
-#         self.fixed_header.set_remaining_length(0)
-
-#         ###################
-#         # VARIABLE HEADER #
-#         ###################
-
-#         self.variable_header.add_field("disconnect_reasons_code")
-#         self.variable_header.add_field("property_length")
-
-#         disconnect_reasons_code = ""
-#         property_length = ""
-#         self.variable_header.set_field_value("disconnect_reasons_code",disconnect_reasons_code)
-#         self.variable_header.set_field_value("property_length",property_length)
-      
-    
+        # The PINGRESP packet has no Variable Header and no Payload.
 
 
 
-# if __name__ == "__main__":
 
+class DisconnectPacket:
+    fixed_header = FixedHeader()
 
+    def __init__(self, reason_code = 0x00, property_length = 0, session_expiry_interval_id = 0, session_expiry_interval = 0):
+        self.reason_code = reason_code
+        self.property_length = property_length
+        self.session_expiry_interval_id = session_expiry_interval_id
+        self.session_expiry_interval = session_expiry_interval 
 
-#     test_1 = ConnectPacket()
-#     test_2 = ConnackPacket()
-#     test_3 = PublishPacket(1,2,1)
-#     test_4 = PubackPacket()
-#     test_5 = PubrecPacket()
-#     test_6 = PubrelPacket()
-#     test_7  = PubcompPacket()
+    def pack(self):
+        packed_data = bytearray()  
+        ################
+        # FIXED HEADER #
+        ################
 
-#     test_8  = SubscribePacket()
-#     test_9  = SubackPacket()
-#     test_10  = UnsubscribePacket()
-#     test_11  = UnsubackPacket()
+        # 14 for disconnect
+        self.fixed_header.packet_type = 0x0E
+        # flags -> reserved ( 0 )
+        self.fixed_header.flags = 0x00
+        self.fixed_header.remaining_length = 2
 
+        ###################
+        # VARIABLE HEADER #
+        ###################
 
-#     print("CONNECT")
-#     print(test_1.variable_header.get_field("protocol_name"))
-#     print(test_1.variable_header.get_field("protocol_level"))
-#     print("CONNACK")
-#     print(test_2.fixed_header.get_packet_type())
-#     print(test_2.fixed_header.get_flag())
-#     print(test_2.variable_header.get_field("connect_ackowledge_flags"))
-#     print(test_2.variable_header.get_field("connect_return_code"))
-#     print("PUBLISH")
-#     print(test_3.fixed_header.get_packet_type())
-#     print(test_3.fixed_header.get_flag())
-#     print(test_3.variable_header.get_field("topic_name"))
-#     print(test_3.variable_header.get_field("packet_identifier"))
-#     print("PUBACK")
-#     print(test_4.fixed_header.get_packet_type())
-#     print(test_4.fixed_header.get_flag())
-#     print(test_4.variable_header.get_field("packet_identifier"))
-#     print("PUBREC")
-#     print(test_5.fixed_header.get_packet_type())
-#     print(test_5.fixed_header.get_flag())
-#     print(test_5.variable_header.get_field("packet_identifier"))
-#     print("PUBREL")
-#     print(test_6.fixed_header.get_packet_type())
-#     print(test_6.fixed_header.get_flag())
-#     print(test_6.variable_header.get_field("packet_identifier"))
-#     print("PUBCOMP")
-#     print(test_7.fixed_header.get_packet_type())
-#     print(test_7.fixed_header.get_flag())
-#     print(test_7.variable_header.get_field("packet_identifier"))
+        packed_data.append(self.reason_code)
+        packed_data.extend(encode_int(self.property_length))
+        packed_data.extend(encode_int(self.session_expiry_interval_id))
+        packed_data.extend(encode_int(self.session_expiry_interval))
 
-#     print("SUBSCRIBE")
-#     print(test_8.fixed_header.get_packet_type())
-#     print(test_8.fixed_header.get_flag())
-#     print(test_8.variable_header.get_field("packet_identifier"))
-#     print("SUBACK")
-#     print(test_9.fixed_header.get_packet_type())
-#     print(test_9.fixed_header.get_flag())
-#     print(test_9.variable_header.get_field("packet_identifier"))
-#     print("UNSUBSCRIBE")
-#     print(test_10.fixed_header.get_packet_type())
-#     print(test_10.fixed_header.get_flag())
-#     print(test_10.variable_header.get_field("packet_identifier"))
-#     print("UNSUBACK")
-#     print(test_11.fixed_header.get_packet_type())
-#     print(test_11.fixed_header.get_flag())
-#     print(test_11.variable_header.get_field("packet_identifier"))
-    
+        self.fixed_header.remaining_length = len(packed_data)
+        packed_data.extend(self.fixed_header.pack())
 
+        # The DISCONNECT packet has no Payload.
+
+        # user properties ?
+        # server reference ?
+
+class AuthPacket:
+    fixed_header = FixedHeader()
+
+    def __init__(self, reason_code = 0x00, property_length = 0, auth_method_id = 0, auth_method = "", auth_data_id = 0, auth_data = "", reason_string_id = 0, reason_string = ""):
+        self.reason_code = reason_code
+        self.property_length = property_length
+        self.auth_method_id = auth_method_id
+        self.auth_method = auth_method
+        self.auth_data_id = auth_data_id
+        self.auth_data = auth_data
+        self.reason_string_id = reason_string_id
+        self.reason_string = reason_string
+
+    def pack(self):
+        packed_data = bytearray()  
+        ################
+        # FIXED HEADER #
+        ################
+
+        # 15 for disconnect
+        self.fixed_header.packet_type = 0x0F
+        # flags -> reserved ( 0 )
+        self.fixed_header.flags = 0x00
+        self.fixed_header.remaining_length = 2
+
+        ###################
+        # VARIABLE HEADER #
+        ###################
+
+        packed_data.append(self.reason_code)
+        packed_data.extend(encode_int(self.property_length))
+        packed_data.extend(encode_int(self.auth_method_id))
+        packed_data.extend(encode_string(self.auth_method))
+        packed_data.extend(encode_int(self.auth_data_id))
+        packed_data.extend(encode_string(self.auth_data))
+        packed_data.extend(encode_int(self.reason_string_id))
+        packed_data.extend(encode_string(self.reason_string))
+
+        self.fixed_header.remaining_length = len(packed_data)
+        packed_data.extend(self.fixed_header.pack())
+        
+        # The AUTH packet has no Payload.
+
+        # user properties ?
 
 
 
