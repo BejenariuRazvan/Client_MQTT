@@ -4,15 +4,15 @@ from encode import encode_string, encode_int
 
 class ConnectPacket:
     class ConnectFlags: 
-        username_flag = 1
-        password_flag = 1
+        username_flag = 0
+        password_flag = 0
         will_retain = 0
-        will_qos = 1
+        will_qos = 0
         will_flag = 0
-        clean_start = 0
+        clean_start = 1
     
 
-    def __init__(self, client_id = "", will_properties = 0, will_topic = 0, will_payload = 0, user_name = "", password = "", keep_alive = 0):
+    def __init__(self, keep_alive, client_id = "", will_properties = 0, will_topic = 0, will_payload = 0, user_name = "", password = ""):
         self.fixed_header = FixedHeader()
         self.client_id = client_id
         self.will_properties = will_properties
@@ -65,12 +65,16 @@ class ConnectPacket:
         # !H -> unsigned short with Big Endian
         packed_data.extend(struct.pack('!H', self.keep_alive))
 
+        # property length - to be modified in the future in order to 
+        # contain property codes
+        packed_data.append(0x00)
+
         ############
         # PAYLOAD #
         ############
 
         # The ClientID MUST be a UTF-8 Encoded String
-         
+
         packed_data.extend(encode_string(self.client_id))
 
         if self.ConnectFlags.will_flag == 1:
@@ -112,8 +116,6 @@ class ConnackPacket:
         # only 2 bytes in Variable header, no bytes in payload
         self.fixed_header.remaining_length = 0x02 
 
-        packed_data.extend(self.fixed_header.pack())
-
         ###################
         # VARIABLE HEADER #
         ###################
@@ -121,9 +123,18 @@ class ConnackPacket:
         packed_data.extend(encode_int(self.connect_ackowledge_flags))
         packed_data.extend(encode_int(self.connect_reason_code))
 
+        # property length - to be modified in the future in order to 
+        # contain property codes
+        packed_data.append(0x00)
+
         # The CONNACK Packet has no payload.
         
-        return packed_data
+        self.fixed_header.remaining_length = len(packed_data)
+        packed_data_with_fixed_header = bytearray(self.fixed_header.pack())
+
+        packed_data_with_fixed_header.extend(packed_data)
+
+        return packed_data_with_fixed_header
 
 class PublishPacket:
     def __init__(self, topic = '', payload = '', 
@@ -158,6 +169,10 @@ class PublishPacket:
         packed_data.extend(encode_string(self.topic))
         if self.QoS > 0:
             packed_data.extend(struct.pack('!H', self.packet_id))
+
+        # property length - to be modified in the future in order to 
+        # contain property codes
+        packed_data.append(0x00)
 
         ###########
         # PAYLOAD #
@@ -364,6 +379,10 @@ class SubscribePacket:
         ###################
         packed_data.extend(struct.pack('!H', self.packet_id))
 
+        # property length - to be modified in the future in order to 
+        # contain property codes
+        packed_data.append(0x00)
+
         ###########
         # PAYLOAD #
         ###########
@@ -415,6 +434,10 @@ class SubackPacket:
         # VARIABLE HEADER #
         ###################
         packed_data.extend(struct.pack('!H', self.packet_id))
+
+        # property length - to be modified in the future in order to 
+        # contain property codes
+        packed_data.append(0x00)
         
         ###########
         # PAYLOAD #
@@ -451,7 +474,13 @@ class UnsubscribePacket:
         ###################
         # VARIABLE HEADER #
         ###################
+
         packed_data.extend(struct.pack('!H', self.packet_id))
+
+        # property length - to be modified in the future in order to 
+        # contain property codes
+        packed_data.append(0x00)
+
         ###########
         # PAYLOAD #
         ###########
@@ -486,7 +515,12 @@ class UnsubackPacket:
         ###################
         # VARIABLE HEADER #
         ###################
+
         packed_data.extend(struct.pack('!H', self.packet_id))
+
+        # property length - to be modified in the future in order to 
+        # contain property codes
+        packed_data.append(0x00)
 
         ###########
         # PAYLOAD #

@@ -1,7 +1,7 @@
 import socket,time
 from control_packets import *
 
-connect_package = ConnectPacket()
+connect_package = ConnectPacket(60,"idOfTheBestClient")
 connack_package = ConnackPacket(1,1)
 publish_package = PublishPacket()
 puback_package = PubackPacket()
