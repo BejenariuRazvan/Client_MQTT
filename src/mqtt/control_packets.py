@@ -192,8 +192,6 @@ class PubackPacket:
         # only 2 bytes in Variable header, no bytes in payload
         self.fixed_header.remaining_length = 2
 
-        packed_data.extend(self.fixed_header.pack())
-
         ###################
         # VARIABLE HEADER #
         ###################
