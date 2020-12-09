@@ -2,6 +2,22 @@ from packet_format import FixedHeader
 import struct
 from encode import encode_string, encode_int
 
+CONNECT_PACKET = 0x01
+CONNACK_PACKET = 0x02
+PUBLISH_PACKET = 0x03
+PUBACK_PACKET = 0x04
+PUBREC_PACKET = 0x05
+PUBREL_PACKET = 0x06
+PUBCOMP_PACKET = 0x07
+SUBSCRIBE_PACKET = 0x08
+SUBACK_PACKET = 0x09
+UNSUBSCRIBE_PACKET = 0x0a
+UNSUBACK_PACKET = 0x0b
+PINGREQ_PACKET = 0x0c
+PINGRESP_PACKET = 0x0d
+DISCONNECT_PACKET = 0x0e
+AUTH_PACKET = 0x0f
+
 class ConnectPacket:
     class ConnectFlags: 
         username_flag = 0
@@ -591,7 +607,7 @@ class DisconnectPacket:
         ################
 
         # 14 for disconnect
-        self.fixed_header.packet_type = 0x0E
+        self.fixed_header.packet_type = 0x0e
         # flags -> reserved ( 0 )
         self.fixed_header.flags = 0x00
         self.fixed_header.remaining_length = 2
@@ -636,7 +652,7 @@ class AuthPacket:
         ################
 
         # 15 for disconnect
-        self.fixed_header.packet_type = 0x0F
+        self.fixed_header.packet_type = 0x0f
         # flags -> reserved ( 0 )
         self.fixed_header.flags = 0x00
         self.fixed_header.remaining_length = 2
