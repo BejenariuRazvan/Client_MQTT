@@ -2,6 +2,7 @@ from psutil import sensors_temperatures, cpu_percent, disk_partitions, process_i
 import abc
 from cpuinfo import get_cpu_info
 
+
 class SystemInformation(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
@@ -17,7 +18,7 @@ class CpuInformation(SystemInformation):
         info += get_cpu_info()['brand_raw'] + "\n\n"
         iterator = 1
         info += "Core loads:\n"
-        for cpu in cpu_percent(0.1,True):
+        for cpu in cpu_percent(0.1, True):
             info = info + "Core " + str(iterator) + ": " + str(cpu) + "%\n"
             iterator = iterator + 1
 
@@ -27,11 +28,12 @@ class CpuInformation(SystemInformation):
 
         if temps:
             for name, entries in temps.items():
-                if(name == "coretemp"):
+                if name == "coretemp":
                     for entry in entries:
-                        info += str(entry.label) + " " + str(entry.current)+" °C\n" 
+                        info += str(entry.label) + " " + str(entry.current) + " °C\n"
 
         return info
+
 
 # class with only one method that returns a string containing relevant information about the disks that the computer has
 class DiskInformation(SystemInformation):
@@ -42,6 +44,7 @@ class DiskInformation(SystemInformation):
             info += str(disk) + "\n"
 
         return info
+
 
 # class with only one method that returns a string containing relevant information about the current running processes
 class RunningProcesses(SystemInformation):

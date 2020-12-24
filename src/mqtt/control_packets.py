@@ -18,17 +18,22 @@ PINGRESP_PACKET = 0x0d
 DISCONNECT_PACKET = 0x0e
 AUTH_PACKET = 0x0f
 
+
+#####################################
+# CONNECT PACKET - CLIENT TO SERVER #
+#####################################
+
 class ConnectPacket:
-    class ConnectFlags: 
+    class ConnectFlags:
         username_flag = 0
         password_flag = 0
         will_retain = 0
         will_qos = 0
         will_flag = 0
         clean_start = 1
-    
 
-    def __init__(self, keep_alive, client_id = "", will_properties = 0, will_topic = 0, will_payload = 0, user_name = "", password = ""):
+    def __init__(self, keep_alive, client_id="", will_properties=0, will_topic=0, will_payload=0, user_name="",
+                 password=""):
         self.fixed_header = FixedHeader()
         self.client_id = client_id
         self.will_properties = will_properties
@@ -56,17 +61,17 @@ class ConnectPacket:
         # VARIABLE HEADER #
         ###################
 
-        #protocol name
-        packed_data.append(0x00) # Length MSB (0)
-        packed_data.append(0x04) # Length LSB (4)
+        # protocol name
+        packed_data.append(0x00)  # Length MSB (0)
+        packed_data.append(0x04)  # Length LSB (4)
 
         for char in 'MQTT':
-            packed_data.append(ord(char)) # byte 3->6
+            packed_data.append(ord(char))  # byte 3->6
 
-        #protocol_version
+        # protocol_version
         packed_data.append(0x05)
-        
-        #connect flags
+
+        # connect flags
         flags = 0
         flags |= self.ConnectFlags.username_flag << 7
         flags |= self.ConnectFlags.password_flag << 6
@@ -97,7 +102,7 @@ class ConnectPacket:
             packed_data.extend(encode_string(self.will_properties))
             packed_data.extend(encode_string(self.will_topic))
             packed_data.extend(encode_string(self.will_payload))
-        
+
         if self.ConnectFlags.username_flag == 1:
             packed_data.extend(encode_string(self.user_name))
         if self.ConnectFlags.password_flag == 1:
@@ -109,16 +114,21 @@ class ConnectPacket:
         packed_data_with_fixed_header.extend(packed_data)
 
         return packed_data_with_fixed_header
-    
+
     # TO DO: add decode function
 
+
+#####################################
+# CONNACK PACKET - SERVER TO CLIENT #
+#####################################
 class ConnackPacket:
-    def __init__(self, connect_ackowledge_flags = 0, connect_reason_code = 0):
+    def __init__(self, connect_ackowledge_flags=0, connect_reason_code=0):
         self.fixed_header = FixedHeader()
-        self.connect_ackowledge_flags = connect_ackowledge_flags
+        self.connect_acknowledge_flags = connect_ackowledge_flags
         self.connect_reason_code = connect_reason_code
 
-    def pack(self):  
+    # Construct the packet, not needed by the client.
+    def pack(self):
         packed_data = bytearray()
 
         ################
@@ -130,13 +140,13 @@ class ConnackPacket:
         # flags -> reserved ( 0 )
         self.fixed_header.flags = 0x00
         # only 2 bytes in Variable header, no bytes in payload
-        self.fixed_header.remaining_length = 0x02 
+        self.fixed_header.remaining_length = 0x02
 
         ###################
         # VARIABLE HEADER #
         ###################
 
-        packed_data.extend(encode_int(self.connect_ackowledge_flags))
+        packed_data.extend(encode_int(self.connect_acknowledge_flags))
         packed_data.extend(encode_int(self.connect_reason_code))
 
         # property length - to be modified in the future in order to 
@@ -144,7 +154,7 @@ class ConnackPacket:
         packed_data.append(0x00)
 
         # The CONNACK Packet has no payload.
-        
+
         self.fixed_header.remaining_length = len(packed_data)
         packed_data_with_fixed_header = bytearray(self.fixed_header.pack())
 
@@ -152,9 +162,24 @@ class ConnackPacket:
 
         return packed_data_with_fixed_header
 
+    def unpack(self, data):
+        h, i = self.fixed_header.unpack(data)
+        self.connect_acknowledge_flags = data[i]
+        self.connect_reason_code = data[i + 1]
+        return self, i + 2
+
+    def __repr__(self):
+        fmt = '<%s %s, Flags: 0x%0x, ReturnCode: 0x%0x>'
+        return fmt % (
+            self.__class__.__name__, self.fixed_header, self.connect_acknowledge_flags, self.connect_reason_code)
+
+
+##########################################################
+# PUBLISH PACKET - CLIENT TO SERVER AND SERVER TO CLIENT #
+##########################################################
 class PublishPacket:
-    def __init__(self, topic = '', payload = '', 
-            packet_id = 0, QoS = 0, dup = 0, retain = 0):
+    def __init__(self, topic='', payload='',
+                 packet_id=0, QoS=0, dup=0, retain=0):
         self.fixed_header = FixedHeader()
         self.topic = topic
         self.payload = payload
@@ -173,7 +198,7 @@ class PublishPacket:
         # 3 for publish
         self.fixed_header.packet_type = 0x03
         # flags -> [DUP][QOS][QOS][RETAIN]
-        
+
         self.fixed_header.flags |= self.dup << 3
         self.fixed_header.flags |= self.QoS << 1
         self.fixed_header.flags |= self.retain
@@ -195,7 +220,7 @@ class PublishPacket:
         ###########
 
         packed_data.extend(bytearray(self.payload, 'utf-8'))
-        
+
         self.fixed_header.remaining_length = len(packed_data)
         packed_data_with_fixed_header = bytearray(self.fixed_header.pack())
         packed_data_with_fixed_header.extend(packed_data)
@@ -203,15 +228,19 @@ class PublishPacket:
         return packed_data_with_fixed_header
     # TO DO: add functions to modify variable header and payload
 
+
+#########################################################
+# PUBACK PACKET - CLIENT TO SERVER AND SERVER TO CLIENT #
+#########################################################
 class PubackPacket:
-    def __init__(self, packet_id = 0, reason_code = 0x00, property_length = 0):
+    def __init__(self, packet_id=0, reason_code=0x00, property_length=0):
         self.fixed_header = FixedHeader()
-        self.packet_id = packet_id    
+        self.packet_id = packet_id
         self.reason_code = reason_code
         self.property_length = property_length
 
-    def pack(self):      
-        packed_data = bytearray()  
+    def pack(self):
+        packed_data = bytearray()
         ################
         # FIXED HEADER #
         ################
@@ -246,15 +275,19 @@ class PubackPacket:
 
         return packed_data_with_fixed_header
 
+
+#########################################################
+# PUBREC PACKET - CLIENT TO SERVER AND SERVER TO CLIENT #
+#########################################################
 class PubrecPacket:
-    def __init__(self, packet_id = 0, reason_code = 0x00, property_length = 0):
+    def __init__(self, packet_id=0, reason_code=0x00, property_length=0):
         self.fixed_header = FixedHeader()
-        self.packet_id = packet_id    
+        self.packet_id = packet_id
         self.reason_code = reason_code
         self.property_length = property_length
 
     def pack(self):
-        packed_data = bytearray()  
+        packed_data = bytearray()
         ################
         # FIXED HEADER #
         ################
@@ -290,15 +323,19 @@ class PubrecPacket:
 
         return packed_data_with_fixed_header
 
+
+#########################################################
+# PUBREL PACKET - CLIENT TO SERVER AND SERVER TO CLIENT #
+#########################################################
 class PubrelPacket:
-    def __init__(self, packet_id = 0, reason_code = 0x00, property_length = 0):
+    def __init__(self, packet_id=0, reason_code=0x00, property_length=0):
         self.fixed_header = FixedHeader()
-        self.packet_id = packet_id    
+        self.packet_id = packet_id
         self.reason_code = reason_code
         self.property_length = property_length
 
     def pack(self):
-        packed_data = bytearray()  
+        packed_data = bytearray()
         ################
         # FIXED HEADER #
         ################
@@ -329,15 +366,19 @@ class PubrelPacket:
 
         return packed_data_with_fixed_header
 
+
+##########################################################
+# PUBCOMP PACKET - CLIENT TO SERVER AND SERVER TO CLIENT #
+##########################################################
 class PubcompPacket:
-    def __init__(self, packet_id = 0, reason_code = 0x00, property_length = 0):
+    def __init__(self, packet_id=0, reason_code=0x00, property_length=0):
         self.fixed_header = FixedHeader()
-        self.packet_id = packet_id    
+        self.packet_id = packet_id
         self.reason_code = reason_code
         self.property_length = property_length
 
     def pack(self):
-        packed_data = bytearray()  
+        packed_data = bytearray()
         ################
         # FIXED HEADER #
         ################
@@ -366,9 +407,13 @@ class PubcompPacket:
 
         return packed_data_with_fixed_header
 
+
+#######################################
+# SUBSCRIBE PACKET - CLIENT TO SERVER #
+#######################################
 class SubscribePacket:
-    def __init__(self,topic,QoS, packet_id = 0, property_length = 0, Retain_Handling=[], RAP=[], NL=[]):
-        self.fixed_header=FixedHeader()
+    def __init__(self, topic=[], QoS=[], packet_id=0, property_length=0, Retain_Handling=[], RAP=[], NL=[]):
+        self.fixed_header = FixedHeader()
         self.packet_id = packet_id
         self.property_length = property_length
         self.Retain_Handling = Retain_Handling
@@ -378,17 +423,17 @@ class SubscribePacket:
         self.QoS = QoS
 
     def pack(self):
-        packed_data=bytearray()
+        packed_data = bytearray()
 
         #################
         # FIXED HEADER #
         ################
         # 8 for SUBSCRIBE
-        self.fixed_header.packet_type=0x08
+        self.fixed_header.packet_type = 0x08
         # flags -> reserved(2)
-        self.fixed_header.flags=0x02
+        self.fixed_header.flags = 0x02
         # remaining_length will be determined later
-        self.fixed_header.remaining_length=0
+        self.fixed_header.remaining_length = 0
 
         ###################
         # VARIABLE HEADER #
@@ -402,23 +447,22 @@ class SubscribePacket:
         ###########
         # PAYLOAD #
         ###########
-        i = 0
 
         # for every element in the topic list, get the message and the QoS 
-        for elem in self.topic:
-            packed_data.extend(encode_string(elem))
+        for i, topic in enumerate(self.topic):
+            print(encode_string(topic))
+            packed_data.extend(encode_string(topic))
             aux = 0
-            aux =aux << 7
             if len(self.Retain_Handling) != 0:
-                aux |=self.Retain_Handling[i] <<5
+                aux |= self.Retain_Handling[i] << 5
             if len(self.RAP) != 0:
-                aux |=self.RAP[i] <<3
+                aux |= self.RAP[i] << 3
             if len(self.NL) != 0:
-                aux |=self.NL[i] <<2
-            aux |=self.QoS[i]
+                aux |= self.NL[i] << 2
+            if len(self.QoS) != 0:
+                aux |= self.QoS[i]
             packed_data.extend(encode_int(aux))
-            i+=1
-        
+
         self.fixed_header.remaining_length = len(packed_data)
         packed_data_with_fixed_header = bytearray(self.fixed_header.pack())
         packed_data_with_fixed_header.extend(packed_data)
@@ -427,25 +471,30 @@ class SubscribePacket:
 
         # to be completed
 
-class SubackPacket:  
-    def __init__(self,packet_id=0,reasons_code=[]):
+
+#######################################
+# SUBSCRIBE PACKET - SERVER TO CLIENT #
+#######################################
+class SubackPacket:
+    def __init__(self, packet_id=0, reasons_code=[]):
         self.fixed_header = FixedHeader()
         self.packet_id = packet_id
         self.reasons_code = reasons_code
-    
+
+    # Construct the packet, not needed by the client.
     def pack(self):
-        packed_data=bytearray()
+        packed_data = bytearray()
         ################
         # FIXED HEADER #
         ################
 
         # 9 for Suback
-        self.fixed_header.packet_type=0x09
+        self.fixed_header.packet_type = 0x09
         # flags -> reserved(0)
-        self.fixed_header.flags=0x00
+        self.fixed_header.flags = 0x00
         # remaining_length will be determined later
-        self.fixed_header.remaining_length=0
-        
+        self.fixed_header.remaining_length = 0
+
         ###################
         # VARIABLE HEADER #
         ###################
@@ -454,11 +503,11 @@ class SubackPacket:
         # property length - to be modified in the future in order to 
         # contain property codes
         packed_data.append(0x00)
-        
+
         ###########
         # PAYLOAD #
         ###########
-        for code in (self.reasons_code):
+        for code in self.reasons_code:
             packed_data.append(code)
 
         self.fixed_header.remaining_length = len(packed_data)
@@ -468,25 +517,29 @@ class SubackPacket:
         return packed_data_with_fixed_header
         # to be completed
 
+
+#########################################
+# UNSUBSCRIBE PACKET - CLIENT TO SERVER #
+#########################################
 class UnsubscribePacket:
-    def __init__(self,packet_id=0,topic=[]):
+    def __init__(self, packet_id=0, topic=[]):
         self.fixed_header = FixedHeader()
-        self.packet_id=packet_id
+        self.packet_id = packet_id
         self.topic = topic
 
     def pack(self):
-        packed_data=bytearray()        
-        
+        packed_data = bytearray()
+
         ################
         # FIXED HEADER #
         ################
-        
+
         # 10 for unsubscribe
-        self.fixed_header.packet_type=0x0a
+        self.fixed_header.packet_type = 0x0a
         # flags -> reserved(2)
-        self.fixed_header.flags=0x02
-        self.fixed_header.remaining_length=0
-        
+        self.fixed_header.flags = 0x02
+        self.fixed_header.remaining_length = 0
+
         ###################
         # VARIABLE HEADER #
         ###################
@@ -500,7 +553,7 @@ class UnsubscribePacket:
         ###########
         # PAYLOAD #
         ###########
-        for top in (self.topic):
+        for top in self.topic:
             packed_data.extend(encode_string(top))
 
         self.fixed_header.remaining_length = len(packed_data)
@@ -510,24 +563,29 @@ class UnsubscribePacket:
         return packed_data_with_fixed_header
         # to be completed
 
-class UnsubackPacket:
-    def __init__(self,packet_id=0):
-        self.fixed_header = FixedHeader()
-        self.packet_id=packet_id
 
+#########################################
+# UNSUBSCRIBE PACKET - SERVER TO CLIENT #
+#########################################
+class UnsubackPacket:
+    def __init__(self, packet_id=0):
+        self.fixed_header = FixedHeader()
+        self.packet_id = packet_id
+
+    # Construct the packet, not needed by the client.
     def pack(self):
-        packed_data=bytearray()
+        packed_data = bytearray()
 
         ################
         # FIXED HEADER #
         ################
 
         # 11 for unsuback
-        self.fixed_header.packet_type=0xb
+        self.fixed_header.packet_type = 0xb
         # flags -> reserved(0)
-        self.fixed_header.flags=0x00
-        self.fixed_header.remaining_length=0
-        
+        self.fixed_header.flags = 0x00
+        self.fixed_header.remaining_length = 0
+
         ###################
         # VARIABLE HEADER #
         ###################
@@ -548,60 +606,73 @@ class UnsubackPacket:
         return packed_data_with_fixed_header
         # to be completed
 
+
+#####################################
+# PINGREQ PACKET - CLIENT TO SERVER #
+#####################################
 class PingreqPacket:
     def __init__(self):
         self.fixed_header = FixedHeader()
 
-    def pack(self): 
-        packed_data=bytearray()       
+    def pack(self):
+        packed_data = bytearray()
 
         ################
         # FIXED HEADER #
         ################
-        
+
         # 12 for pingreq
-        self.fixed_header.packet_type=0x0c
+        self.fixed_header.packet_type = 0x0c
         # flags -> reserved(0)
-        self.fixed_header.flags=0x00
-        self.fixed_header.remaining_length=0
+        self.fixed_header.flags = 0x00
+        self.fixed_header.remaining_length = 0
         packed_data.extend(self.fixed_header.pack())
 
         # The PINGRESP packet has no Variable Header and no Payload.
 
         return packed_data
 
+
+######################################
+# PINGRESP PACKET - SERVER TO CLIENT #
+######################################
 class PingrespPacket:
     def __init__(self):
         self.fixed_header = FixedHeader()
+
+    # Construct the packet, not needed by the client.
     def pack(self):
-        packed_data=bytearray()
+        packed_data = bytearray()
 
         ################
         # FIXED HEADER #
         ################
-        
+
         # 13 for pingreq
-        self.fixed_header.packet_type=0x0d
+        self.fixed_header.packet_type = 0x0d
         # flags -> reserved(0)
-        self.fixed_header.flags=0x00
-        self.fixed_header.remaining_length=0     
+        self.fixed_header.flags = 0x00
+        self.fixed_header.remaining_length = 0
         packed_data.extend(self.fixed_header.pack())
 
         # The PINGRESP packet has no Variable Header and no Payload.
-        
+
         return packed_data
 
 
+#############################################################
+# DISCONNECT PACKET - CLIENT TO SERVER AND SERVER TO CLIENT #
+#############################################################
 class DisconnectPacket:
-    def __init__(self, reason_code = 0x00, property_length = 0, session_expiry_interval_id = 0, session_expiry_interval = 0):
+    def __init__(self, reason_code=0x00, property_length=0, session_expiry_interval_id=0, session_expiry_interval=0):
         self.fixed_header = FixedHeader()
         self.reason_code = reason_code
         self.property_length = property_length
         self.session_expiry_interval_id = session_expiry_interval_id
-        self.session_expiry_interval = session_expiry_interval 
+        self.session_expiry_interval = session_expiry_interval
 
     def pack(self):
-        packed_data = bytearray()  
+        packed_data = bytearray()
         ################
         # FIXED HEADER #
         ################
@@ -632,9 +703,14 @@ class DisconnectPacket:
 
         return packed_data_with_fixed_header
 
+
+#######################################################
+# AUTH PACKET - CLIENT TO SERVER AND SERVER TO CLIENT #
+#######################################################
 class AuthPacket:
 
-    def __init__(self, reason_code = 0x00, property_length = 0, auth_method_id = 0, auth_method = "", auth_data_id = 0, auth_data = "", reason_string_id = 0, reason_string = ""):
+    def __init__(self, reason_code=0x00, property_length=0, auth_method_id=0, auth_method="", auth_data_id=0,
+                 auth_data="", reason_string_id=0, reason_string=""):
         self.fixed_header = FixedHeader()
         self.reason_code = reason_code
         self.property_length = property_length
@@ -646,7 +722,7 @@ class AuthPacket:
         self.reason_string = reason_string
 
     def pack(self):
-        packed_data = bytearray()  
+        packed_data = bytearray()
         ################
         # FIXED HEADER #
         ################
@@ -669,7 +745,7 @@ class AuthPacket:
         packed_data.extend(encode_string(self.auth_data))
         packed_data.extend(encode_int(self.reason_string_id))
         packed_data.extend(encode_string(self.reason_string))
-        
+
         # The AUTH packet has no Payload.
 
         # user properties ?
@@ -679,9 +755,3 @@ class AuthPacket:
         packed_data_with_fixed_header.extend(packed_data)
 
         return packed_data_with_fixed_header
-
-
-
-
-
-
