@@ -122,9 +122,9 @@ class ConnectPacket:
 # CONNACK PACKET - SERVER TO CLIENT #
 #####################################
 class ConnackPacket:
-    def __init__(self, connect_ackowledge_flags=0, connect_reason_code=0):
+    def __init__(self, connect_acknowledge_flags=0, connect_reason_code=0):
         self.fixed_header = FixedHeader()
-        self.connect_acknowledge_flags = connect_ackowledge_flags
+        self.connect_acknowledge_flags = connect_acknowledge_flags
         self.connect_reason_code = connect_reason_code
 
     # Construct the packet, not needed by the client.
@@ -208,8 +208,7 @@ class PublishPacket:
         ###################
 
         packed_data.extend(encode_string(self.topic))
-        if self.QoS > 0:
-            packed_data.extend(struct.pack('!H', self.packet_id))
+        packed_data.extend(struct.pack('!H', self.packet_id))
 
         # property length - to be modified in the future in order to 
         # contain property codes
