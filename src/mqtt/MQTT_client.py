@@ -43,6 +43,7 @@ class MQTTClient:
         self.running = True
         self.sending_thread = Thread(target=self.run)
         self.receiving_thread = Thread(target=self.receive)
+        self.keep_alive_thread = Thread(target=self.client_keep_alive)
         self.connect_packet = ConnectPacket(self.keep_alive, self.client_name)
         self.connect()
         self.send(self.connect_packet.pack())
@@ -65,9 +66,6 @@ class MQTTClient:
                 # if server sends us disconnect, we stop the threads
                 if decode_packet_type(received_data[0]) == "DISCONNECT":
                     self.disconnect()
-                # keep alive functionality
-                elif decode_packet_type(received_data[0]) == "PINGREQ":
-                    self.send(PingrespPacket().pack())
                 print(datetime.now().strftime("%H:%M:%S") + ": RAW DATA: " + str(received_data))
 
     def disconnect(self):
@@ -76,10 +74,17 @@ class MQTTClient:
         self.send(DisconnectPacket().pack())
         self.receiving_thread.join()
         self.sending_thread.join()
+        self.keep_alive_thread.join()
         self.running = False
 
     def run(self):
         pass
+
+    # keep alive functionality
+    def client_keep_alive(self):
+        while self.running:
+            sleep(int(self.keep_alive*1.4))
+            self.send(PingreqPacket().pack())
 
 
 class MQTTPublisher(MQTTClient):
@@ -93,6 +98,7 @@ class MQTTPublisher(MQTTClient):
         self.publish_packet = PublishPacket("/OS", "CPU", self.generated_client_id, self.qos)
         self.sending_thread.start()
         self.receiving_thread.start()
+        # self.keep_alive_thread.start()
 
     def run(self):
         if self.qos == 1 or self.qos == 0:
@@ -125,6 +131,7 @@ class MQTTSubscriber(MQTTClient):
         self.send(self.subscribe_packet.pack())
         self.sending_thread.start()
         self.receiving_thread.start()
+        self.keep_alive_thread.start()
 
     def run(self):
         if self.qos_level == 1:
@@ -143,8 +150,8 @@ class MQTTSubscriber(MQTTClient):
 
 
 # right now the output is mixed on the terminal, will be resolved when we get to the GUI phase
-publisher = MQTTPublisher(IP_, PORT, "publisher", 60, 2)
-subscriber = MQTTSubscriber(IP_, PORT, "subscriber", ["/OS"], 60, 2)
+publisher = MQTTPublisher(IP_, PORT, "publisher", 5, 2)
+subscriber = MQTTSubscriber(IP_, PORT, "subscriber", ["/OS"], 5, 2)
 
 # cb's -> PyDispatcher
 # test wildcards ( $, +)
