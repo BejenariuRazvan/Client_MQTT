@@ -88,30 +88,33 @@ class MQTTClient:
 
 
 class MQTTPublisher(MQTTClient):
-    def __init__(self, IP, port, client_name, keep_alive, qos):
+    def __init__(self, IP, port, client_name,topic,payload, keep_alive, qos,tip,interval):
         global g_generated_client_id
         super().__init__(IP, port, client_name, keep_alive)
         self.qos = qos
+        self.tip=tip
+        self.interval=interval
         self.generated_client_id = randint(1, 1 << 16 - 1)
         g_generated_client_id = self.generated_client_id
         # to be replaced in the future
-        self.publish_packet = PublishPacket("/OS", "CPU", self.generated_client_id, self.qos)
+        self.publish_packet = PublishPacket(topic, payload, self.generated_client_id, self.qos)
         self.sending_thread.start()
         self.receiving_thread.start()
         # self.keep_alive_thread.start()
 
     def run(self):
-        if self.qos == 1 or self.qos == 0:
-            while self.running:
-                self.send(self.publish_packet.pack())
-                sleep(2)
-        if self.qos == 2:
-            while self.running:
-                if self.last_received_packet == "CONNACK" or self.last_received_packet == "PUBCOMP":
-                    self.send(self.publish_packet.pack())
-                elif self.last_received_packet == "PUBREC":
-                    self.send(PubrelPacket(self.generated_client_id).pack())
-                sleep(2)
+        if(self.tip==2):  
+            if self.qos == 1 or self.qos == 0:
+                while self.running:
+                        self.send(self.publish_packet.pack())
+                        sleep(self.interval)
+            if self.qos == 2:
+                while self.running: 
+                    if self.last_received_packet == "CONNACK" or self.last_received_packet == "PUBCOMP":
+                        self.send(self.publish_packet.pack())
+                    elif self.last_received_packet == "PUBREC":
+                        self.send(PubrelPacket(self.generated_client_id).pack())
+                        sleep(self.interval)
 
 
 class MQTTSubscriber(MQTTClient):
@@ -150,8 +153,11 @@ class MQTTSubscriber(MQTTClient):
 
 
 # right now the output is mixed on the terminal, will be resolved when we get to the GUI phase
-publisher = MQTTPublisher(IP_, PORT, "publisher", 5, 2)
-subscriber = MQTTSubscriber(IP_, PORT, "subscriber", ["/OS"], 5, 2)
+
+# Exemple:
+
+    #publisher = MQTTPublisher(IP_, PORT, "publisher", 5, 2)
+    #subscriber = MQTTSubscriber(IP_, PORT, "subscriber", ["/OS"], 5, 2)
 
 # cb's -> PyDispatcher
 # test wildcards ( $, +)
