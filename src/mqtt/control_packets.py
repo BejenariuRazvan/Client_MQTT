@@ -25,8 +25,8 @@ AUTH_PACKET = 0x0f
 
 class ConnectPacket:
     class ConnectFlags:
-        username_flag = 0
-        password_flag = 0
+        username_flag = 1
+        password_flag = 1
         will_retain = 0
         will_qos = 0
         will_flag = 0

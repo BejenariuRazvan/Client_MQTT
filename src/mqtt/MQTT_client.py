@@ -55,21 +55,49 @@ class Gui:
 
         # Password entry + label
         Label(self.frame, text="Parola", font="arial", padx=5, pady=5).pack()
-        self.password_entry = Entry(self.frame, width=40, show='*')
+        self.password_entry = Entry(self.frame, width=40, show="*")
         self.password_entry.pack()
 
         # Submit button
         self.submit_button = Button(self.frame, text="Connect", font="arial", command=self.submit)
         self.submit_button.pack()
+
+        Label(self.frame, text="Don't have an account?", font="arial", padx=5, pady=5).pack()
+        self.registration_button = Button(self.frame, text="Register", font="arial", command=self.register)
+        self.registration_button.pack()
+
         self.frame.pack()
 
-    def submit(self):
-        if len(self.name_entry.get()) != 0 and len(self.password_entry.get()) != 0:
-            self.nume = self.name_entry.get()
-            self.parola = self.password_entry.get()
-            self.frame.destroy()
-            PubSub()
+    def register(self):
+        f = open("clienti.txt","a+")
+        f.write(str(self.name_entry.get())+":"+str(self.password_entry.get())+"\n")
+        self.name_entry.delete(0,END)
+        self.password_entry.delete(0,END)
+        f.close()
 
+
+    def submit(self):
+        f = open("clienti.txt","r")
+        t = f.readlines()
+        ok=0
+        for pers in t:
+            n=""
+            i=0
+            while pers[i]!=":":
+                n=n+pers[i]
+                i=i+1
+            i=i+1
+            p=pers[i:-1]
+            if self.name_entry.get()==n and self.password_entry.get()==p:
+                self.nume=self.name_entry.get()
+                self.parola=self.password_entry.get()
+                self.frame.destroy()
+                ok=1
+                PubSub()
+                break
+        if ok==0:
+            Label(self.frame,text="Name or password incorrect").pack()
+        f.close()
 
 class PubSub(Gui):
     notebook: ttk.Notebook
@@ -193,6 +221,7 @@ class PubSub(Gui):
 
     def submit_publish(self):
         global g_manual_publish_flag
+        print(self.QoS.get())
         if len(self.publisher_entry_name.get()) != 0:
             publish_interval = 0
             if self.publisher_time_interval.get():
@@ -245,7 +274,7 @@ class MQTTClient:
         self.sending_thread = Thread(target=self.run)
         self.receiving_thread = Thread(target=self.receive)
         self.keep_alive_thread = Thread(target=self.client_keep_alive)
-        self.connect_packet = ConnectPacket(self.keep_alive, self.client_name)
+        self.connect_packet = ConnectPacket(self.keep_alive, self.client_name,user_name=gui.nume,password=gui.parola)
         self.connect()
         self.send(self.connect_packet.pack())
 
