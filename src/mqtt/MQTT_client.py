@@ -1,5 +1,6 @@
 import logging
 import socket
+import re
 from threading import Thread
 from time import sleep
 from tkinter.scrolledtext import ScrolledText
@@ -48,13 +49,13 @@ class Gui:
         self.frame = Frame(self.root, width=640, height=512, relief='raised')
 
         # Username entry + label
-        Label(self.frame, text="Nume utilizator", font="arial", padx=5, pady=5).pack()
+        Label(self.frame, text="Name", font="arial", padx=5, pady=5).pack()
         self.name_entry = Entry(self.frame, width=40)
         self.name_entry.focus()
         self.name_entry.pack()
 
         # Password entry + label
-        Label(self.frame, text="Parola", font="arial", padx=5, pady=5).pack()
+        Label(self.frame, text="Password", font="arial", padx=5, pady=5).pack()
         self.password_entry = Entry(self.frame, width=40, show="*")
         self.password_entry.pack()
 
@@ -66,75 +67,89 @@ class Gui:
         self.registration_button = Button(self.frame, text="Register", font="arial", command=self.register)
         self.registration_button.pack()
 
+        self.user_name = ""
+        self.password = ""
+        self.publisher = None
+        self.subscriber = None
+        self.notebook = None
+        self.publish_frame = None
+        self.subscribe_frame = None
+        self.subscriber_entry_name = None
+        self.subscribe_topics = None
+        self.subscribe_keep_alive = None
+        self.QoS = None
+        self.logger = None
+        self.publisher_entry_name = None
+        self.publisher_topics = None
+        self.publisher_payload = None
+        self.publisher_keep_alive = None
+        self.publish_type = None
+        self.check = None
+        self.publisher_time_interval = None
+        self.pub = None
+
         self.frame.pack()
 
     def register(self):
-        f = open("clienti.txt","a+")
-        f.write(str(self.name_entry.get())+":"+str(self.password_entry.get())+"\n")
-        self.name_entry.delete(0,END)
-        self.password_entry.delete(0,END)
+        f = open("clienti.txt", "a+")
+        f.write(str(self.name_entry.get()) + ":" + str(self.password_entry.get()) + "\n")
+        self.name_entry.delete(0, END)
+        self.password_entry.delete(0, END)
         f.close()
-
 
     def submit(self):
-        f = open("clienti.txt","r")
+        f = open("clienti.txt", "r")
         t = f.readlines()
-        ok=0
+        ok = 0
         for pers in t:
-            n=""
-            i=0
-            while pers[i]!=":":
-                n=n+pers[i]
-                i=i+1
-            i=i+1
-            p=pers[i:-1]
-            if self.name_entry.get()==n and self.password_entry.get()==p:
-                self.nume=self.name_entry.get()
-                self.parola=self.password_entry.get()
+            n = ""
+            i = 0
+            while pers[i] != ":":
+                n = n + pers[i]
+                i = i + 1
+            i = i + 1
+            p = pers[i:-1]
+            if self.name_entry.get() == n and self.password_entry.get() == p:
+                self.user_name = self.name_entry.get()
+                self.password = self.password_entry.get()
                 self.frame.destroy()
-                ok=1
-                PubSub()
+                ok = 1
+                self.create_pub_sub_gui()
                 break
-        if ok==0:
-            Label(self.frame,text="Name or password incorrect").pack()
+        if ok == 0:
+            Label(self.frame, text="Name or password incorrect").pack()
         f.close()
 
-class PubSub(Gui):
-    notebook: ttk.Notebook
-
-    def __init__(self):
-        self.publisher = None
-        self.subscriber = None
-
+    def create_pub_sub_gui(self):
         self.frame = Frame(self.root, width=640, height=512, relief='raised')
         self.notebook = ttk.Notebook(self.frame)
         self.publish_frame = Frame(self.notebook)
         self.subscribe_frame = Frame(self.notebook)
         self.notebook.add(self.publish_frame, text='Publish')
-        self.SUB()
-        self.PUB()
+        self.create_subscriber()
+        self.create_publisher()
         self.notebook.add(self.subscribe_frame, text='Subscribe')
         self.notebook.pack()
         # Add text widget to display logging info
-        self.st = ScrolledText(self.root, state='disabled')
-        self.st.configure(font='TkFixedFont')
+        self.logger = ScrolledText(self.root, state='disabled')
+        self.logger.configure(font='TkFixedFont')
         # Create textLogger
-        text_handler = WidgetLogger(self.st)
+        text_handler = WidgetLogger(self.logger)
         # Logging configuration
         logging.basicConfig(filename='test.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
         # Add the handler to logger
         logger = logging.getLogger()
         logger.addHandler(text_handler)
-        self.st.pack()
+        self.logger.pack()
         self.frame.pack()
 
-    def SUB(self):
-        Label(self.subscribe_frame, text="Nume", font="arial", padx=5, pady=5).pack()
+    def create_subscriber(self):
+        Label(self.subscribe_frame, text="Name", font="arial", padx=5, pady=5).pack()
         self.subscriber_entry_name = Entry(self.subscribe_frame, width=40)
         self.subscriber_entry_name.pack()
 
         # Topic label + topic text box
-        Label(self.subscribe_frame, text="Topicuri", font="arial", padx=5, pady=5).pack()
+        Label(self.subscribe_frame, text="Topics", font="arial", padx=5, pady=5).pack()
         self.subscribe_topics = Text(self.subscribe_frame, width=40, height=10)
         self.subscribe_topics.pack()
 
@@ -156,18 +171,20 @@ class PubSub(Gui):
         self.sub.pack()
         self.frame.pack()
 
-
     def submit_subscribe(self):
         topic_list = self.subscribe_topics.get(1.0, END).split("\n")
         topic_list.pop()
-        print(topic_list)
-        if len(self.subscriber_entry_name.get()) != 0 and self.QoS != 0 and self.subscribe_keep_alive != 0:
+        if len(self.subscriber_entry_name.get()) != 0 and len(self.subscribe_topics.get(1.0, END)) != 0 \
+                and len(self.subscribe_keep_alive.get()) != 0 and re.match("^[0-9]*$", self.subscribe_keep_alive.get()):
             if self.subscriber is None:
-                self.subscriber = MQTTSubscriber(IP_, PORT, self.subscriber_entry_name.get(),
+                self.subscriber = MQTTSubscriber(IP_, PORT, self.user_name, self.password,
+                                                 self.subscriber_entry_name.get(),
                                                  topic_list, int(self.subscribe_keep_alive.get()),
                                                  self.QoS.get())
+        else:
+            logging.error("Invalid information entered.")
 
-    def PUB(self):
+    def create_publisher(self):
         # Client label + entry box
         Label(self.publish_frame, text="Name", font="arial", padx=5, pady=5).pack()
         self.publisher_entry_name = Entry(self.publish_frame, width=40)
@@ -205,7 +222,7 @@ class PubSub(Gui):
         self.check = Button(self.publish_frame, text="Check interval", font="arial", command=self.get_type)
         self.check.pack()
 
-        Label(self.publish_frame, text="publish interval", font="arial", padx=5, pady=5).pack()
+        Label(self.publish_frame, text="Publish Interval", font="arial", padx=5, pady=5).pack()
         self.publisher_time_interval = Entry(self.publish_frame, width=40, state=DISABLED)
         self.publisher_time_interval.pack()
 
@@ -222,13 +239,16 @@ class PubSub(Gui):
     def submit_publish(self):
         global g_manual_publish_flag
         print(self.QoS.get())
-        if len(self.publisher_entry_name.get()) != 0:
+        if len(self.publisher_entry_name.get()) != 0 and len(self.publisher_topics.get()) != 0 \
+                and len(self.publisher_payload.get()) != 0 and re.match("[0-9]*$", self.publisher_keep_alive.get()) \
+                and len(self.publisher_keep_alive.get()) != 0:
             publish_interval = 0
             if self.publisher_time_interval.get():
                 publish_interval = int(self.publisher_time_interval.get())
             if self.publisher is None:
                 self.subscribe_frame.destroy()
-                self.publisher = MQTTPublisher(IP_, PORT, self.publisher_entry_name.get(), self.publisher_topics.get(),
+                self.publisher = MQTTPublisher(IP_, PORT, self.user_name, self.password,
+                                               self.publisher_entry_name.get(), self.publisher_topics.get(),
                                                self.publisher_payload.get(), int(self.publisher_keep_alive.get()),
                                                int(self.QoS.get()), self.publish_type.get(),
                                                publish_interval)
@@ -240,6 +260,8 @@ class PubSub(Gui):
                     element.config(state=DISABLED)
                 self.pub.config(state=NORMAL)
                 g_manual_publish_flag += 1
+        else:
+            logging.error("Invalid information entered.")
 
 
 def decode_packet_type(raw_packet):
@@ -262,7 +284,7 @@ def decode_packet_type(raw_packet):
 
 
 class MQTTClient:
-    def __init__(self, IP, port, client_name, keep_alive):
+    def __init__(self, IP, port, client_username, client_password, client_name, keep_alive):
         # create a IPv4, TCP socket
         self.IP = IP
         self.port = port
@@ -274,7 +296,8 @@ class MQTTClient:
         self.sending_thread = Thread(target=self.run)
         self.receiving_thread = Thread(target=self.receive)
         self.keep_alive_thread = Thread(target=self.client_keep_alive)
-        self.connect_packet = ConnectPacket(self.keep_alive, self.client_name,user_name=gui.nume,password=gui.parola)
+        self.connect_packet = ConnectPacket(self.keep_alive, self.client_name,
+                                            user_name=client_username, password=client_password)
         self.connect()
         self.send(self.connect_packet.pack())
 
@@ -286,24 +309,24 @@ class MQTTClient:
         self.MQTT_socket.sendall(data)
 
     def receive(self):
-        while self.running is True:
-            received_data = self.MQTT_socket.recv(4096)
-            if received_data:
-                self.last_received_packet = decode_packet_type(received_data[0])
-                logging.info("\n<<" + self.client_name + ">>")
-                logging.info(datetime.now().strftime("%H:%M:%S") + ": RECEIVED " + decode_packet_type(
-                    received_data[0]) + " PACKET.")
-                # if server sends us disconnect, we stop the threads
-                if decode_packet_type(received_data[0]) == "DISCONNECT":
-                    logging.error("Broker sent disconnect.")
-                    self.disconnect()
-                logging.info(datetime.now().strftime("%H:%M:%S") + ": RAW DATA: " + str(received_data))
+        try:
+            while self.running is True:
+                received_data = self.MQTT_socket.recv(4096)
+                if received_data:
+                    self.last_received_packet = decode_packet_type(received_data[0])
+                    logging.info("\n<<" + self.client_name + ">>")
+                    logging.info(datetime.now().strftime("%H:%M:%S") + ": RECEIVED " + decode_packet_type(
+                        received_data[0]) + " PACKET.")
+                    # if server sends us disconnect, we stop the threads
+                    logging.info(datetime.now().strftime("%H:%M:%S") + ": RAW DATA: " + str(received_data))
+        except ConnectionAbortedError:
+            logging.error("Broker suspended connection. Please restart application and use valid credentials.")
+        except ConnectionResetError:
+            logging.error("Broker restarted connection. Please restart application and use valid credentials.")
 
     def disconnect(self):
-        print("DISCONNECTED.")
+        logging.error("DISCONNECTED.")
         # send disconnect package
-        self.send(DisconnectPacket().pack())
-        self.receiving_thread.join()
         self.sending_thread.join()
         self.keep_alive_thread.join()
         self.running = False
@@ -319,9 +342,10 @@ class MQTTClient:
 
 
 class MQTTPublisher(MQTTClient):
-    def __init__(self, IP, port, client_name, topic, payload, keep_alive, qos, tip, interval):
+    def __init__(self, IP, port, client_username, client_password, client_name, topic, payload,
+                 keep_alive, qos, tip, interval):
         global g_generated_client_id
-        super().__init__(IP, port, client_name, keep_alive)
+        super().__init__(IP, port, client_username, client_password, client_name, keep_alive)
         self.qos = qos
         self.tip = tip
         self.interval = interval
@@ -329,9 +353,12 @@ class MQTTPublisher(MQTTClient):
         g_generated_client_id = self.generated_client_id
         # to be replaced in the future
         self.publish_packet = PublishPacket(topic, payload, self.generated_client_id, self.qos)
-        self.sending_thread.start()
-        self.receiving_thread.start()
-        # self.keep_alive_thread.start()
+        try:
+            self.sending_thread.start()
+            self.receiving_thread.start()
+            # self.keep_alive_thread.start()
+        except:
+            logging.error("Failure when starting threads in " + str(type(self)) + ".")
 
     def run(self):
         global g_manual_publish_flag
@@ -366,9 +393,9 @@ class MQTTPublisher(MQTTClient):
 
 
 class MQTTSubscriber(MQTTClient):
-    def __init__(self, IP, port, client_name, topics, keep_alive, qos_level):
-        global  g_generated_client_id
-        super().__init__(IP, port, client_name, keep_alive)
+    def __init__(self, IP, port, client_username, client_password, client_name, topics, keep_alive, qos_level):
+        global g_generated_client_id
+        super().__init__(IP, port, client_username, client_password, client_name, keep_alive)
         QoS = []
         self.qos_level = qos_level
         g_generated_client_id = randint(1, 1 << 16 - 1)
@@ -382,9 +409,12 @@ class MQTTSubscriber(MQTTClient):
         # env variable??
         self.subscribe_packet = SubscribePacket(topics, QoS, randint(1, 1 << 16 - 1))
         self.send(self.subscribe_packet.pack())
-        self.sending_thread.start()
-        self.receiving_thread.start()
-        self.keep_alive_thread.start()
+        try:
+            self.sending_thread.start()
+            self.receiving_thread.start()
+            # self.keep_alive_thread.start()
+        except:
+            logging.error("Failure when starting threads in " + str(type(self)) + ".")
 
     def run(self):
         global g_generated_client_id
@@ -406,7 +436,6 @@ class MQTTSubscriber(MQTTClient):
 if __name__ == "__main__":
     gui = Gui()
     gui.root.mainloop()  # runs the gui in loop
-
 
 # cb's -> PyDispatcher
 # test wildcards ( $, +)
