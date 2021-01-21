@@ -5,11 +5,11 @@ from threading import Thread
 from time import sleep
 from tkinter.scrolledtext import ScrolledText
 from control_packets import *
-# from decode import decode_int
 from datetime import datetime
 from random import randint
 from tkinter import *
 from tkinter import ttk
+from system_info import *
 
 IP_ = '127.0.0.1'
 PORT = 1883
@@ -192,13 +192,15 @@ class Gui:
 
         # Topic label + topic text box
         Label(self.publish_frame, text="Topics", font="arial", padx=5, pady=5).pack()
-        self.publisher_topics = Entry(self.publish_frame, width=40)
+        self.publisher_topics = ttk.Combobox(self.publish_frame, values=["CPU", "CPU Loads", "Cpu Temps",
+                                                                         "Memory", "Disk", "Network"])
         self.publisher_topics.pack()
+        self.publisher_topics.current(0)
 
         # Payload label + entry
-        Label(self.publish_frame, text="Payload", font="arial", padx=5, pady=5).pack()
-        self.publisher_payload = Entry(self.publish_frame, width=40)
-        self.publisher_payload.pack()
+        # Label(self.publish_frame, text="Payload", font="arial", padx=5, pady=5).pack()
+        # self.publisher_payload = Entry(self.publish_frame, width=40)
+        # self.publisher_payload.pack()
 
         # Keep alive
         Label(self.publish_frame, text="Keep Alive", font="arial", padx=5, pady=5).pack()
@@ -239,17 +241,16 @@ class Gui:
     def submit_publish(self):
         global g_manual_publish_flag
         print(self.QoS.get())
-        if len(self.publisher_entry_name.get()) != 0 and len(self.publisher_topics.get()) != 0 \
-                and len(self.publisher_payload.get()) != 0 and re.match("[0-9]*$", self.publisher_keep_alive.get()) \
+        if len(self.publisher_entry_name.get()) != 0 and re.match("[0-9]*$", self.publisher_keep_alive.get()) \
                 and len(self.publisher_keep_alive.get()) != 0:
             publish_interval = 0
             if self.publisher_time_interval.get():
                 publish_interval = int(self.publisher_time_interval.get())
             if self.publisher is None:
-                self.subscribe_frame.destroy()
+                self.publisher_payload = self.publisher_topics.get()
                 self.publisher = MQTTPublisher(IP_, PORT, self.user_name, self.password,
                                                self.publisher_entry_name.get(), self.publisher_topics.get(),
-                                               self.publisher_payload.get(), int(self.publisher_keep_alive.get()),
+                                               int(self.publisher_keep_alive.get()),
                                                int(self.QoS.get()), self.publish_type.get(),
                                                publish_interval)
             if self.publish_type.get() == 2:
@@ -283,6 +284,30 @@ def decode_packet_type(raw_packet):
     return switch[packet_type]
 
 
+def determine_payload(topic):
+    ret_val = ""
+    if topic == "CPU":
+        temp = CpuInformation()
+        ret_val = temp.get_info()
+    elif topic == "CPU Loads":
+        temp = CpuUsage()
+        ret_val = temp.get_info()
+    elif topic == "CPU Temps":
+        temp = CpuTemperatures()
+        ret_val = temp.get_info()
+    elif topic == "Memory":
+        temp = MemoryInformation()
+        ret_val = temp.get_info()
+    elif topic == "Disk":
+        temp = DiskInformation()
+        ret_val = temp.get_info()
+    elif topic == "Network":
+        temp = NetworkInformation()
+        ret_val = temp.get_info()
+
+    return ret_val
+
+
 class MQTTClient:
     def __init__(self, IP, port, client_username, client_password, client_name, keep_alive):
         # create a IPv4, TCP socket
@@ -306,7 +331,10 @@ class MQTTClient:
 
     def send(self, data):
         print(datetime.now().strftime("%H:%M:%S") + "SENT " + str(data))
-        self.MQTT_socket.sendall(data)
+        try:
+            self.MQTT_socket.sendall(data)
+        except BrokenPipeError:
+            logging.error("Broker suspended connection. Please restart application and use valid credentials.")
 
     def receive(self):
         try:
@@ -323,6 +351,9 @@ class MQTTClient:
             logging.error("Broker suspended connection. Please restart application and use valid credentials.")
         except ConnectionResetError:
             logging.error("Broker restarted connection. Please restart application and use valid credentials.")
+        # for linux
+        except BrokenPipeError:
+            logging.error("Broker suspended connection. Please restart application and use valid credentials.")
 
     def disconnect(self):
         logging.error("DISCONNECTED.")
@@ -342,7 +373,7 @@ class MQTTClient:
 
 
 class MQTTPublisher(MQTTClient):
-    def __init__(self, IP, port, client_username, client_password, client_name, topic, payload,
+    def __init__(self, IP, port, client_username, client_password, client_name, topic,
                  keep_alive, qos, tip, interval):
         global g_generated_client_id
         super().__init__(IP, port, client_username, client_password, client_name, keep_alive)
@@ -350,9 +381,10 @@ class MQTTPublisher(MQTTClient):
         self.tip = tip
         self.interval = interval
         self.generated_client_id = randint(1, 1 << 16 - 1)
+        self.topic = topic
+        self.publish_packet = None
         g_generated_client_id = self.generated_client_id
         # to be replaced in the future
-        self.publish_packet = PublishPacket(topic, payload, self.generated_client_id, self.qos)
         try:
             self.sending_thread.start()
             self.receiving_thread.start()
@@ -365,10 +397,16 @@ class MQTTPublisher(MQTTClient):
         if self.tip == 2:
             if self.qos == 1 or self.qos == 0:
                 while self.running:
+                    temporary_payload = determine_payload(self.topic)
+                    self.publish_packet = PublishPacket(self.topic, temporary_payload,
+                                                        self.generated_client_id, self.qos)
                     self.send(self.publish_packet.pack())
                     sleep(self.interval)
             if self.qos == 2:
                 while self.running:
+                    temporary_payload = determine_payload(self.topic)
+                    self.publish_packet = PublishPacket(self.topic, temporary_payload, self.generated_client_id,
+                                                        self.qos)
                     if self.last_received_packet == "CONNACK" or self.last_received_packet == "PUBCOMP":
                         self.send(self.publish_packet.pack())
                     if self.last_received_packet == "PUBREC":
@@ -378,11 +416,17 @@ class MQTTPublisher(MQTTClient):
             if self.qos == 1 or self.qos == 0:
                 while self.running:
                     while g_manual_publish_flag != 0:
+                        temporary_payload = determine_payload(self.topic)
+                        self.publish_packet = PublishPacket(self.topic, temporary_payload, self.generated_client_id,
+                                                            self.qos)
                         self.send(self.publish_packet.pack())
                         g_manual_publish_flag -= 1
             if self.qos == 2:
                 while self.running:
                     while g_manual_publish_flag != 0:
+                        temporary_payload = determine_payload(self.topic)
+                        self.publish_packet = PublishPacket(self.topic, temporary_payload, self.generated_client_id,
+                                                            self.qos)
                         if self.last_received_packet == "CONNACK" or self.last_received_packet == "PUBCOMP":
                             self.send(self.publish_packet.pack())
                             sleep(1)
