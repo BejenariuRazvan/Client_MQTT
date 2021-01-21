@@ -29,10 +29,10 @@ class ConnectPacket:
         password_flag = 1
         will_retain = 0
         will_qos = 0
-        will_flag = 0
+        will_flag = 1
         clean_start = 1
 
-    def __init__(self, keep_alive, client_id="", will_properties=0, will_topic=0, will_payload=0, user_name="",
+    def __init__(self, keep_alive, client_id="", will_properties=0, will_topic="", will_payload="", user_name="",
                  password=""):
         self.fixed_header = FixedHeader()
         self.client_id = client_id
@@ -99,7 +99,7 @@ class ConnectPacket:
         packed_data.extend(encode_string(self.client_id))
 
         if self.ConnectFlags.will_flag == 1:
-            packed_data.extend(encode_string(self.will_properties))
+            packed_data.extend(encode_int(self.will_properties))
             packed_data.extend(encode_string(self.will_topic))
             packed_data.extend(encode_string(self.will_payload))
 
@@ -208,7 +208,8 @@ class PublishPacket:
         ###################
 
         packed_data.extend(encode_string(self.topic))
-        packed_data.extend(struct.pack('!H', self.packet_id))
+        if self.QoS != 0:
+            packed_data.extend(struct.pack('!H', self.packet_id))
 
         # property length - to be modified in the future in order to 
         # contain property codes
@@ -449,7 +450,6 @@ class SubscribePacket:
 
         # for every element in the topic list, get the message and the QoS 
         for i, topic in enumerate(self.topic):
-            print(encode_string(topic))
             packed_data.extend(encode_string(topic))
             aux = 0
             if len(self.Retain_Handling) != 0:

@@ -1,5 +1,5 @@
 /src/mqtt/__pycache__/*
 /src/mqtt/test.log
 /src/test.log
-/src/mqtt/clienti.txt
+/src/mqtt/clients.txt
 /.idea

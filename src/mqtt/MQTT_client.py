@@ -63,10 +63,6 @@ class Gui:
         self.submit_button = Button(self.frame, text="Connect", font="arial", command=self.submit)
         self.submit_button.pack()
 
-        Label(self.frame, text="Don't have an account?", font="arial", padx=5, pady=5).pack()
-        self.registration_button = Button(self.frame, text="Register", font="arial", command=self.register)
-        self.registration_button.pack()
-
         self.user_name = ""
         self.password = ""
         self.publisher = None
@@ -87,18 +83,12 @@ class Gui:
         self.check = None
         self.publisher_time_interval = None
         self.pub = None
+        self.publisher_will_message = None
 
         self.frame.pack()
 
-    def register(self):
-        f = open("clienti.txt", "a+")
-        f.write(str(self.name_entry.get()) + ":" + str(self.password_entry.get()) + "\n")
-        self.name_entry.delete(0, END)
-        self.password_entry.delete(0, END)
-        f.close()
-
     def submit(self):
-        f = open("clienti.txt", "r")
+        f = open("clients.txt", "r")
         t = f.readlines()
         ok = 0
         for pers in t:
@@ -192,15 +182,15 @@ class Gui:
 
         # Topic label + topic text box
         Label(self.publish_frame, text="Topics", font="arial", padx=5, pady=5).pack()
-        self.publisher_topics = ttk.Combobox(self.publish_frame, values=["CPU", "CPU Loads", "Cpu Temps",
-                                                                         "Memory", "Disk", "Network"])
+        self.publisher_topics = ttk.Combobox(self.publish_frame, values=["/pc/cpu/info", "/pc/cpu/load", "/pc/cpu/temp",
+                                                                         "/pc/memory", "/pc/disk", "/pc/network"])
         self.publisher_topics.pack()
         self.publisher_topics.current(0)
 
-        # Payload label + entry
-        # Label(self.publish_frame, text="Payload", font="arial", padx=5, pady=5).pack()
-        # self.publisher_payload = Entry(self.publish_frame, width=40)
-        # self.publisher_payload.pack()
+        # Will Message
+        Label(self.publish_frame, text="Will Message", font="arial", padx=5, pady=5).pack()
+        self.publisher_will_message = Entry(self.publish_frame, width=40)
+        self.publisher_will_message.pack()
 
         # Keep alive
         Label(self.publish_frame, text="Keep Alive", font="arial", padx=5, pady=5).pack()
@@ -240,9 +230,8 @@ class Gui:
 
     def submit_publish(self):
         global g_manual_publish_flag
-        print(self.QoS.get())
         if len(self.publisher_entry_name.get()) != 0 and re.match("[0-9]*$", self.publisher_keep_alive.get()) \
-                and len(self.publisher_keep_alive.get()) != 0:
+                and len(self.publisher_keep_alive.get()) != 0 and len(self.publisher_will_message.get()) != 0:
             publish_interval = 0
             if self.publisher_time_interval.get():
                 publish_interval = int(self.publisher_time_interval.get())
@@ -252,7 +241,7 @@ class Gui:
                                                self.publisher_entry_name.get(), self.publisher_topics.get(),
                                                int(self.publisher_keep_alive.get()),
                                                int(self.QoS.get()), self.publish_type.get(),
-                                               publish_interval)
+                                               publish_interval, self.publisher_will_message.get())
             if self.publish_type.get() == 2:
                 for element in self.publish_frame.pack_slaves():
                     element.config(state=DISABLED)
@@ -286,22 +275,22 @@ def decode_packet_type(raw_packet):
 
 def determine_payload(topic):
     ret_val = ""
-    if topic == "CPU":
+    if topic == "/pc/cpu/info":
         temp = CpuInformation()
         ret_val = temp.get_info()
-    elif topic == "CPU Loads":
+    elif topic == "/pc/cpu/load":
         temp = CpuUsage()
         ret_val = temp.get_info()
-    elif topic == "CPU Temps":
+    elif topic == "/pc/cpu/temp":
         temp = CpuTemperatures()
         ret_val = temp.get_info()
-    elif topic == "Memory":
+    elif topic == "/pc/memory":
         temp = MemoryInformation()
         ret_val = temp.get_info()
-    elif topic == "Disk":
+    elif topic == "/pc/disk":
         temp = DiskInformation()
         ret_val = temp.get_info()
-    elif topic == "Network":
+    elif topic == "/pc/network":
         temp = NetworkInformation()
         ret_val = temp.get_info()
 
@@ -309,7 +298,7 @@ def determine_payload(topic):
 
 
 class MQTTClient:
-    def __init__(self, IP, port, client_username, client_password, client_name, keep_alive):
+    def __init__(self, IP, port, client_username, client_password, client_name, keep_alive, will_message, will_topic):
         # create a IPv4, TCP socket
         self.IP = IP
         self.port = port
@@ -322,7 +311,8 @@ class MQTTClient:
         self.receiving_thread = Thread(target=self.receive)
         self.keep_alive_thread = Thread(target=self.client_keep_alive)
         self.connect_packet = ConnectPacket(self.keep_alive, self.client_name,
-                                            user_name=client_username, password=client_password)
+                                            user_name=client_username, password=client_password,
+                                            will_properties=0, will_topic=will_topic, will_payload=will_message)
         self.connect()
         self.send(self.connect_packet.pack())
 
@@ -330,7 +320,7 @@ class MQTTClient:
         self.MQTT_socket.connect((self.IP, self.port))
 
     def send(self, data):
-        print(datetime.now().strftime("%H:%M:%S") + "SENT " + str(data))
+        # logging.info(datetime.now().strftime("%H:%M:%S") + ": SENT" + str(data))
         try:
             self.MQTT_socket.sendall(data)
         except BrokenPipeError:
@@ -358,9 +348,9 @@ class MQTTClient:
     def disconnect(self):
         logging.error("DISCONNECTED.")
         # send disconnect package
+        self.running = False
         self.sending_thread.join()
         self.keep_alive_thread.join()
-        self.running = False
 
     def run(self):
         pass
@@ -374,9 +364,9 @@ class MQTTClient:
 
 class MQTTPublisher(MQTTClient):
     def __init__(self, IP, port, client_username, client_password, client_name, topic,
-                 keep_alive, qos, tip, interval):
+                 keep_alive, qos, tip, interval, will_message):
         global g_generated_client_id
-        super().__init__(IP, port, client_username, client_password, client_name, keep_alive)
+        super().__init__(IP, port, client_username, client_password, client_name, keep_alive, will_message, topic)
         self.qos = qos
         self.tip = tip
         self.interval = interval
@@ -388,7 +378,7 @@ class MQTTPublisher(MQTTClient):
         try:
             self.sending_thread.start()
             self.receiving_thread.start()
-            # self.keep_alive_thread.start()
+            self.keep_alive_thread.start()
         except:
             logging.error("Failure when starting threads in " + str(type(self)) + ".")
 
@@ -439,7 +429,8 @@ class MQTTPublisher(MQTTClient):
 class MQTTSubscriber(MQTTClient):
     def __init__(self, IP, port, client_username, client_password, client_name, topics, keep_alive, qos_level):
         global g_generated_client_id
-        super().__init__(IP, port, client_username, client_password, client_name, keep_alive)
+        super().__init__(IP, port, client_username, client_password, client_name, keep_alive,
+                         "irrelevant", "/irrelevant")
         QoS = []
         self.qos_level = qos_level
         g_generated_client_id = randint(1, 1 << 16 - 1)
@@ -456,7 +447,7 @@ class MQTTSubscriber(MQTTClient):
         try:
             self.sending_thread.start()
             self.receiving_thread.start()
-            # self.keep_alive_thread.start()
+            self.keep_alive_thread.start()
         except:
             logging.error("Failure when starting threads in " + str(type(self)) + ".")
 
